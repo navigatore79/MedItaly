@@ -55,8 +55,8 @@ async function boot(){
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
-  const{data:aal}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-  if(me.role==='Clinician'&&aal?.currentLevel!=='aal2'){$('auth').classList.add('hidden');$('mfa').classList.remove('hidden');await renderMfa();return;}
+  // BETA: 2FA temporaneamente disattivato per i test della dashboard clinica.
+  // Riattivare il controllo AAL2 prima dell'uso reale/produzione.
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
 }
