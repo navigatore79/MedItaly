@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b68d1" />
+  <title>Meditaly Clinica</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#17312d;background:#f4f8fb}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#eef7ff,#f8fbfd 32%,#f4f8f7);min-height:100vh}
+    button,input,select,textarea{font:inherit} button{cursor:pointer}
+    .wrap{max-width:1280px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+    .brand{font-size:28px;font-weight:900;color:#0b4da2}.brand span{color:#1c6b5b}.small{font-size:12px}.muted{color:#6b7d88}
+    .card{background:#fff;border:1px solid #dfe9ee;border-radius:20px;padding:20px;box-shadow:0 12px 40px #24517a0c}
+    .auth{max-width:520px;margin:60px auto}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}
+    .field input,.field select,.field textarea{width:100%;border:1px solid #cedce4;border-radius:12px;padding:11px 12px;background:#fff}
+    .btn{border:0;background:#0b68d1;color:#fff;padding:11px 15px;border-radius:12px;font-weight:800}.btn.secondary{background:#eef5f8;color:#17312d}.btn.full{width:100%}.btn.warn{background:#c47a00}.btn.danger{background:#b42318}
+    .grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:flex;flex-direction:column;gap:8px;position:sticky;top:20px;height:max-content}
+    .nav button{border:0;background:#f1f6f8;padding:12px;border-radius:12px;text-align:left;font-weight:800;color:#36534e}.nav button.on{background:#0b68d1;color:#fff}
+    .hero{background:linear-gradient(135deg,#0b68d1,#1c6b5b);color:#fff;border-radius:20px;padding:22px;margin-bottom:16px}.hero h1{margin:0 0 6px}.hero p{margin:0;opacity:.9}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{background:#fff;border:1px solid #dfe9ee;border-radius:16px;padding:17px}.kpi b{font-size:28px;display:block;margin-top:6px}
+    .section{margin-top:16px}.row{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}.right{margin-left:auto}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .list,.table-like{display:flex;flex-direction:column;gap:8px}.patient,.item{border:1px solid #e0e9ee;border-radius:14px;padding:13px;background:#fff}.patient{cursor:pointer}.patient:hover{background:#f7fbff}
+    .pill{font-size:12px;border-radius:999px;padding:5px 9px;background:#eef5f8}.dot{width:12px;height:12px;border-radius:50%;display:inline-block}.green{background:#25a65a}.yellow{background:#f5b82e}.red{background:#dc3d3d}.gray{background:#b7c1c8}
+    .attention{border-left:5px solid #dc3d3d}.warn{border-left:5px solid #f5b82e}.hidden{display:none!important}.ok{color:#17814b}.err{color:#b42318}.notice{padding:10px 12px;border-radius:12px;background:#eef7ff;color:#244b73}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tabs button{border:0;background:#eef5f8;padding:9px 12px;border-radius:10px}.tabs button.on{background:#17312d;color:#fff}
+    .msgbox{height:300px;overflow:auto;border:1px solid #e0e9ee;border-radius:14px;padding:10px;background:#f9fcfe}.msg{max-width:72%;margin:7px 0;padding:10px 12px;border-radius:15px;background:#eef3f5}.msg.mine{margin-left:auto;background:#dcebff}
+    .footer{padding:24px 4px 8px;text-align:center;color:#7a8a92;font-size:12px}.beta{background:#fff4d8;color:#805c00;border-radius:10px;padding:10px 12px;margin-bottom:14px}
+    .item details{margin-top:8px;padding:8px;background:#f7fafb;border-radius:10px}.item summary{cursor:pointer;font-weight:700}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.nav{position:static;flex-direction:row;overflow:auto}.kpis{grid-template-columns:1fr 1fr}.two,.three{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">Dashboard medico-paziente</div></div>
+    <button id="logout" class="btn secondary hidden">Esci</button>
+  </div>
+
+  <section id="auth" class="card auth">
+    <div class="tabs"><button id="tabLogin" class="on">Accedi</button><button id="tabRegister">Registrazione medico</button></div>
+    <div id="loginPane">
+      <h2>Accesso medico</h2><p class="muted">Accedi con il tuo account Meditaly.</p>
+      <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username"></div>
+      <div class="field"><label>Password</label><div class="row"><input id="pass" type="password" autocomplete="current-password"><button id="togglePass" type="button" class="btn secondary" aria-label="Mostra password">👁</button></div></div>
+      <div class="row between"><button id="forgotPass" type="button" class="btn secondary">Password dimenticata</button></div>
+      <button id="login" class="btn full" style="margin-top:12px">Accedi</button>
+    </div>
+    <div id="registerPane" class="hidden">
+      <h2>Registrazione medico</h2><p class="muted">L'account diventa clinico soltanto dopo approvazione dell'amministratore Meditaly.</p>
+      <div class="field"><label>Nome e cognome</label><input id="rName" autocomplete="name"></div>
+      <div class="field"><label>Email</label><input id="rEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input id="rPass" type="password" autocomplete="new-password"></div>
+      <div class="field"><label>Telefono</label><input id="rPhone" autocomplete="tel"></div>
+      <div class="field"><label>Numero iscrizione Albo</label><input id="rReg"></div>
+      <div class="field"><label>Codice centro (facoltativo)</label><input id="rCenter"></div>
+      <button id="registerDoctor" class="btn full">Invia richiesta</button>
+    </div>
+    <div id="authMsg"></div>
+  </section>
+
+  <section id="mfa" class="card auth hidden"><div id="mfaBody"></div></section>
+
+  <section id="portal" class="hidden">
+    <div class="beta">Versione beta clinica. Le segnalazioni di benessere non sono una diagnosi e non sostituiscono i canali di emergenza.</div>
+    <div class="grid">
+      <aside class="card nav">
+        <button class="on" data-view="overview">Panoramica</button>
+        <button data-view="patients">Pazienti</button>
+        <button data-view="protocols">Protocolli</button>
+        <button data-view="messages">Messaggi</button>
+        <button data-view="requests">Richieste pazienti</button>
+        <button data-view="profile">Profilo pubblico</button>
+      </aside>
+      <main>
+        <section id="overview" class="view">
+          <div class="hero"><h1>Monitoraggio quotidiano</h1><p>Feedback del paziente, terapie, controlli e comunicazioni in un'unica dashboard.</p></div>
+          <div class="kpis">
+            <div class="kpi">Pazienti<b id="kPatients">0</b></div>
+            <div class="kpi">🔴 Oggi<b id="kRed">0</b></div>
+            <div class="kpi">🟡 Oggi<b id="kYellow">0</b></div>
+            <div class="kpi">Messaggi non letti<b id="kMsg">0</b></div>
+          </div>
+          <div class="card section"><h3>Richiedono attenzione</h3><div id="attentionList" class="list"></div></div>
+        </section>
+
+        <section id="patients" class="view hidden">
+          <div class="card">
+            <div class="row between"><h2>Pazienti assegnati</h2><input id="patientSearch" placeholder="Cerca paziente" style="max-width:280px;padding:10px;border:1px solid #cedce4;border-radius:10px"></div>
+            <div id="patientList" class="list"></div>
+          </div>
+          <div id="patientDetail" class="section hidden"></div>
+        </section>
+
+        <section id="protocols" class="view hidden">
+          <div class="card">
+            <h2>Protocolli di monitoraggio</h2>
+            <p class="muted">Crea modelli riutilizzabili e personalizzabili per ciascun paziente.</p>
+            <div class="two">
+              <div>
+                <div class="field"><label>Nome protocollo</label><input id="protoName" placeholder="Es. Monitoraggio intensivo"></div>
+                <div class="field"><label>Descrizione</label><textarea id="protoDesc" rows="3"></textarea></div>
+                <div class="field"><label>Ora check-in quotidiano</label><input id="protoTime" type="time" value="09:00"></div>
+                <div class="field"><label>Promemoria controlli (giorni prima)</label><input id="protoOffsets" value="7,1,0"></div>
+                <div class="row"><label><input id="protoYellow" type="checkbox"> Evidenzia anche giallo</label><label><input id="protoMissed" type="checkbox"> Evidenzia check-in mancato</label></div>
+                <button id="saveProto" class="btn" style="margin-top:12px">Salva protocollo</button><div id="protoMsg"></div>
+              </div>
+              <div><h3>I miei protocolli</h3><div id="protocolList" class="list"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="messages" class="view hidden">
+          <div class="card"><h2>Messaggi</h2><p class="muted">Apri un paziente per vedere la conversazione completa o inviare una comunicazione immediata.</p></div>
+        </section>
+
+        <section id="requests" class="view hidden">
+          <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>
+          <div class="card section"><h2>Elementi inviati dai pazienti</h2><p class="muted">Terapie, controlli e documenti inseriti manualmente o letti da foto.</p><div id="careImportList" class="list"></div></div>
+        </section>
+
+        <section id="profile" class="view hidden">
+          <div class="card"><h2>Profilo pubblico Meditaly</h2><p class="muted">Questi dati sono mostrati nell'elenco medici dell'app paziente.</p><div class="field"><label>Nome visualizzato</label><input id="dirName"></div><div class="field"><label>Specializzazione</label><input id="dirSpecialty"></div><div class="field"><label>Centro / struttura</label><input id="dirCenter"></div><div class="field"><label>Numero iscrizione Albo</label><input id="dirReg"></div><div class="row"><label><input id="dirVisible" type="checkbox"> Visibile nell'elenco medici</label><label><input id="dirAccept" type="checkbox"> Accetta nuove richieste</label></div><button id="saveDirectory" class="btn" style="margin-top:12px">Salva profilo</button><div id="dirMsg"></div></div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <div class="footer">Meditaly · Dashboard clinica beta RC1</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
