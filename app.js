@@ -149,8 +149,18 @@ async function openPatient(id){
         if(!r.ok)throw new Error(j.error||'Ricerca non disponibile');
         const items=j.items||[];
         medResults.innerHTML=items.map((x,i)=>{
-          const sub=[x.active,x.form,x.pack,x.aic?'AIC '+x.aic:''].filter(Boolean).join(' · ');
-          return '<button type="button" class="aifa-drug" data-i="'+i+'" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #edf3f6;background:#fff;padding:11px 12px;cursor:pointer"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(sub||x.company||'Medicinale AIFA')+'</div></button>';
+          const active=x.active||'Principio attivo non indicato';
+          const form=x.form||'Forma non indicata';
+          const aic=x.aic?'AIC '+x.aic:'AIC non indicato';
+          const pack=x.pack||'';
+          const company=x.company||'';
+          return '<button type="button" class="aifa-drug" data-i="'+i+'" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #edf3f6;background:#fff;padding:12px;cursor:pointer">'+
+            '<div style="font-weight:700;font-size:15px;color:#102f3a">'+esc(x.name)+'</div>'+
+            '<div class="small" style="margin-top:4px;color:#365963"><b>Principio attivo:</b> '+esc(active)+'</div>'+
+            '<div class="small muted" style="margin-top:2px">'+esc(form)+' · '+esc(aic)+'</div>'+
+            (pack?'<div class="small muted" style="margin-top:2px">'+esc(pack)+'</div>':'')+
+            (company?'<div class="small muted" style="margin-top:2px">Titolare: '+esc(company)+'</div>':'')+
+          '</button>';
         }).join('')||'<div class="item small muted">Nessun medicinale trovato.</div>';
         document.querySelectorAll('.aifa-drug').forEach(b=>b.onclick=()=>{
           const x=items[Number(b.dataset.i)];
