@@ -67,6 +67,7 @@
       <aside class="card nav">
         <button class="on" data-view="overview">Panoramica</button>
         <button data-view="patients">Pazienti</button>
+        <button data-view="appointments">Appuntamenti</button>
         <button data-view="protocols">Protocolli</button>
         <button data-view="messages">Messaggi</button>
         <button data-view="requests">Richieste pazienti</button>
@@ -107,9 +108,39 @@
                 <div class="field"><label>Ora check-in quotidiano</label><input id="protoTime" type="time" value="09:00"></div>
                 <div class="field"><label>Promemoria controlli (giorni prima)</label><input id="protoOffsets" value="7,1,0"></div>
                 <div class="row"><label><input id="protoYellow" type="checkbox"> Evidenzia anche giallo</label><label><input id="protoMissed" type="checkbox"> Evidenzia check-in mancato</label></div>
+                <div class="card" style="margin-top:14px;background:#fbfdfe">
+                  <div class="row between"><div><b>Farmaci previsti dal protocollo</b><div class="small muted">Vengono aggiunti al percorso del paziente quando applichi il protocollo. Verifica sempre farmaco, dose e orari.</div></div><button id="addProtoMed" type="button" class="btn secondary">＋ Farmaco</button></div>
+                  <div id="protoMedList" class="list" style="margin-top:10px"></div>
+                </div>
+                <div class="card" style="margin-top:14px;background:#fbfdfe">
+                  <div class="row between"><div><b>Controlli previsti</b><div class="small muted">Le date vengono calcolate rispetto al giorno di applicazione del protocollo.</div></div><button id="addProtoFollow" type="button" class="btn secondary">＋ Controllo</button></div>
+                  <div id="protoFollowList" class="list" style="margin-top:10px"></div>
+                </div>
                 <button id="saveProto" class="btn" style="margin-top:12px">Salva protocollo</button><div id="protoMsg"></div>
               </div>
               <div><h3>I miei protocolli</h3><div id="protocolList" class="list"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="appointments" class="view hidden">
+          <div class="card">
+            <div class="row between"><div><h2>Appuntamenti</h2><p class="muted">Gestisci richieste dei pazienti e proponi nuovi appuntamenti. Le proposte arrivano nell'app come notifica con conferma o rifiuto.</p></div><button id="refreshAppointments" class="btn secondary">Aggiorna</button></div>
+            <div class="two" style="margin-top:14px">
+              <div>
+                <h3>Proponi appuntamento</h3>
+                <div class="field"><label>Paziente</label><select id="apptPatient"></select></div>
+                <div class="field"><label>Data e ora</label><input id="apptStart" type="datetime-local"></div>
+                <div class="two"><div class="field"><label>Durata (min)</label><input id="apptDuration" type="number" min="5" max="480" value="30"></div><div class="field"><label>Modalità</label><select id="apptLocationType"><option value="in_person">In presenza</option><option value="video">Video</option><option value="phone">Telefonica</option></select></div></div>
+                <div class="field"><label>Luogo / indicazioni</label><input id="apptLocation" placeholder="Es. Studio 2, Via..."></div>
+                <div class="field"><label>Motivo</label><input id="apptReason" placeholder="Es. Controllo post-PCI"></div>
+                <div class="field"><label>Nota per il paziente</label><textarea id="apptNote" rows="2"></textarea></div>
+                <button id="proposeAppointment" class="btn">Invia proposta</button><div id="apptMsg"></div>
+              </div>
+              <div>
+                <h3>Richieste e agenda</h3>
+                <div id="appointmentList" class="list"></div>
+              </div>
             </div>
           </div>
         </section>
