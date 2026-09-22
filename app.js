@@ -308,30 +308,90 @@ const GISE_PROTOCOL_TEMPLATES=[
     name:'GISE Post-PCI · Percorso A',
     source:'SICI-GISE / percorso follow-up post-PCI (2015)',
     description:'Paziente post-PCI con disfunzione ventricolare sinistra (FE ≤45%). Nel documento: MMG post-dimissione, a 1 e 2 mesi con controlli ematochimici; visita cardiologica a 3 e 12 mesi e poi annuale se persiste la disfunzione; ecocardiogramma a 3 e 12 mesi se persiste, poi biennale.',
-    time:'09:00', offsets:'7,1,0', yellow:true, missed:true
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:true,
+    followups:[
+      {label:'Controllo MMG',type:'visita',after_days:30,notes:'Follow-up post-PCI · verificare esami ematochimici',reminder_offsets:[7,1,0]},
+      {label:'Controllo MMG',type:'visita',after_days:60,notes:'Follow-up post-PCI',reminder_offsets:[7,1,0]},
+      {label:'Visita cardiologica + ecocardiogramma',type:'cardiologia',after_days:90,notes:'Percorso A · verificare persistenza disfunzione ventricolare',reminder_offsets:[14,7,1]},
+      {label:'Visita cardiologica + ecocardiogramma',type:'cardiologia',after_days:365,notes:'Percorso A · personalizzare in base al quadro clinico',reminder_offsets:[30,7,1]}
+    ]
   },
   {
     id:'gise-pci-b',
     name:'GISE Post-PCI · Percorso B',
     source:'SICI-GISE / percorso follow-up post-PCI (2015)',
     description:'Paziente post-PCI senza disfunzione ventricolare sinistra ma con fattori di rischio clinici (SCA o diabete), anatomici (tronco comune, discendente prossimale o malattia trivasale severa) o procedurali (rivascolarizzazione incompleta/subottimale). Nel documento: MMG post-dimissione, 3 e 6 mesi; cardiologia entro 12 mesi, poi annuale; test provocativo entro 12 mesi e poi biennale, anticipabile a 3-6 mesi in casi selezionati.',
-    time:'09:00', offsets:'7,1,0', yellow:true, missed:false
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:false,
+    followups:[
+      {label:'Controllo MMG',type:'visita',after_days:90,notes:'Percorso B post-PCI',reminder_offsets:[7,1,0]},
+      {label:'Controllo MMG',type:'visita',after_days:180,notes:'Percorso B post-PCI',reminder_offsets:[7,1,0]},
+      {label:'Visita cardiologica',type:'cardiologia',after_days:365,notes:'Entro 12 mesi · personalizzare sul rischio',reminder_offsets:[30,7,1]},
+      {label:'Test provocativo',type:'esame',after_days:365,notes:'Entro 12 mesi se indicato; anticipabile in casi selezionati',reminder_offsets:[30,7,1]}
+    ]
   },
   {
     id:'gise-pci-c',
     name:'GISE Post-PCI · Percorso C',
     source:'SICI-GISE / percorso follow-up post-PCI (2015)',
     description:'Paziente post-PCI che non rientra nei percorsi A o B. Nel documento: MMG post-dimissione e a 3 mesi con controlli ematochimici; visita cardiologica specialistica a 12 mesi; test provocativo non indicato di routine nel paziente asintomatico, salvo situazioni specifiche.',
-    time:'09:00', offsets:'7,1,0', yellow:false, missed:false
+    time:'09:00', offsets:'7,1,0', yellow:false, missed:false,
+    followups:[
+      {label:'Controllo MMG',type:'visita',after_days:90,notes:'Percorso C post-PCI',reminder_offsets:[7,1,0]},
+      {label:'Visita cardiologica specialistica',type:'cardiologia',after_days:365,notes:'Controllo a 12 mesi',reminder_offsets:[30,7,1]}
+    ]
   },
   {
     id:'gise-tavi',
     name:'GISE TAVI · Follow-up',
     source:'Documento di posizione SICI-GISE TAVI (2018)',
     description:'Follow-up dopo TAVI. Il documento indica un primo controllo a 30 giorni con visita clinica, ECG a 12 derivazioni ed ecocardiogramma transtoracico; ECG Holter 24 h in caso di alterazioni del ritmo. Successivi controlli clinici almeno annuali, modulati sul quadro clinico.',
-    time:'09:00', offsets:'7,1,0', yellow:true, missed:true
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:true,
+    followups:[
+      {label:'Controllo TAVI 30 giorni',type:'cardiologia',after_days:30,notes:'Visita clinica + ECG 12 derivazioni + ecocardiogramma; Holter se indicato',reminder_offsets:[7,1,0]},
+      {label:'Controllo TAVI annuale',type:'cardiologia',after_days:365,notes:'Controllo clinico almeno annuale, da modulare sul quadro clinico',reminder_offsets:[30,7,1]}
+    ]
   }
 ];
+
+function addProtoMedRow(v={}){
+  const box=$('protoMedList'); if(!box)return;
+  const el=document.createElement('div');el.className='item proto-med-row';
+  el.innerHTML='<div class="two"><div class="field"><label>Farmaco</label><input class="pm-name" placeholder="Nome / AIFA" value="'+esc(v.name||'')+'"></div><div class="field"><label>Dose</label><input class="pm-dose" placeholder="Es. 100 mg" value="'+esc(v.dose||'')+'"></div></div>'+
+    '<div class="two"><div class="field"><label>Via</label><input class="pm-route" value="'+esc(v.route||'Orale')+'"></div><div class="field"><label>Orari</label><input class="pm-times" placeholder="08:00,20:00" value="'+esc((v.times||[]).join(','))+'"></div></div>'+
+    '<div class="two"><div class="field"><label>Inizio dopo (giorni)</label><input class="pm-start" type="number" min="0" value="'+esc(v.starts_in_days??0)+'"></div><div class="field"><label>Durata (giorni, vuoto = continuativa)</label><input class="pm-duration" type="number" min="1" value="'+esc(v.duration_days??'')+'"></div></div>'+
+    '<div class="field"><label>Istruzioni</label><input class="pm-instr" value="'+esc(v.instructions||'')+'"></div><button type="button" class="btn danger proto-remove">Rimuovi</button>';
+  box.appendChild(el);el.querySelector('.proto-remove').onclick=()=>el.remove();
+}
+function addProtoFollowRow(v={}){
+  const box=$('protoFollowList'); if(!box)return;
+  const el=document.createElement('div');el.className='item proto-follow-row';
+  el.innerHTML='<div class="two"><div class="field"><label>Controllo</label><input class="pf-label" placeholder="Es. Visita cardiologica" value="'+esc(v.label||'')+'"></div><div class="field"><label>Tipo</label><input class="pf-type" value="'+esc(v.type||'controllo')+'"></div></div>'+
+    '<div class="two"><div class="field"><label>Dopo quanti giorni</label><input class="pf-days" type="number" min="0" value="'+esc(v.after_days??30)+'"></div><div class="field"><label>Promemoria giorni prima</label><input class="pf-rem" value="'+esc((v.reminder_offsets||[7,1,0]).join(','))+'"></div></div>'+
+    '<div class="field"><label>Note</label><input class="pf-notes" value="'+esc(v.notes||'')+'"></div><button type="button" class="btn danger proto-remove">Rimuovi</button>';
+  box.appendChild(el);el.querySelector('.proto-remove').onclick=()=>el.remove();
+}
+function clearProtocolPlan(){if($('protoMedList'))$('protoMedList').innerHTML='';if($('protoFollowList'))$('protoFollowList').innerHTML='';}
+function readProtocolPlan(){
+  const medication_plan=[...document.querySelectorAll('.proto-med-row')].map(r=>({
+    name:r.querySelector('.pm-name').value.trim(),
+    dose:r.querySelector('.pm-dose').value.trim(),
+    route:r.querySelector('.pm-route').value.trim(),
+    times:r.querySelector('.pm-times').value.split(',').map(x=>x.trim()).filter(Boolean),
+    starts_in_days:Number(r.querySelector('.pm-start').value||0),
+    duration_days:r.querySelector('.pm-duration').value?Number(r.querySelector('.pm-duration').value):null,
+    instructions:r.querySelector('.pm-instr').value.trim()
+  })).filter(x=>x.name);
+  const followup_plan=[...document.querySelectorAll('.proto-follow-row')].map(r=>({
+    label:r.querySelector('.pf-label').value.trim(),
+    type:r.querySelector('.pf-type').value.trim()||'controllo',
+    after_days:Number(r.querySelector('.pf-days').value||0),
+    reminder_offsets:r.querySelector('.pf-rem').value.split(',').map(Number).filter(Number.isFinite),
+    notes:r.querySelector('.pf-notes').value.trim()
+  })).filter(x=>x.label);
+  return {medication_plan,followup_plan};
+}
+$('addProtoMed').onclick=()=>addProtoMedRow();
+$('addProtoFollow').onclick=()=>addProtoFollowRow();
 
 function renderGiseTemplates(){
   const box=$('giseTemplateList'); if(!box)return;
@@ -348,6 +408,8 @@ function renderGiseTemplates(){
     $('protoOffsets').value=x.offsets;
     $('protoYellow').checked=x.yellow;
     $('protoMissed').checked=x.missed;
+    clearProtocolPlan();
+    (x.followups||[]).forEach(addProtoFollowRow);
     $('protoName').focus();
     out($('protoMsg'),'Template caricato. Verifica i parametri e premi “Salva protocollo”.',true);
   });
@@ -357,13 +419,14 @@ async function loadProtocols(){
   const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
   const{data}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).order('created_at',{ascending:false});
   renderGiseTemplates();
-  $('protocolList').innerHTML=(data||[]).map(x=>'<div class="item"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(x.description||'')+' · check-in '+esc(x.checkin_time?.slice(0,5)||'09:00')+'</div></div>').join('')||'<p class="muted">Nessun protocollo salvato.</p>';
+  $('protocolList').innerHTML=(data||[]).map(x=>'<div class="item"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(x.description||'')+' · check-in '+esc(x.checkin_time?.slice(0,5)||'09:00')+'</div><div class="row" style="margin-top:6px"><span class="pill">'+((x.medication_plan||[]).length)+' farmaci</span><span class="pill">'+((x.followup_plan||[]).length)+' controlli</span></div></div>').join('')||'<p class="muted">Nessun protocollo salvato.</p>';
 }
 $('saveProto').onclick=async()=>{
   const name=$('protoName').value.trim();if(!name)return out($('protoMsg'),'Inserisci il nome.');
   const offsets=$('protoOffsets').value.split(',').map(Number).filter(Number.isFinite);const uid=(await sb.auth.getUser()).data.user.id;
-  const{error}=await sb.from('monitoring_protocols').insert({clinician_id:uid,name,description:$('protoDesc').value.trim(),checkin_enabled:true,checkin_time:$('protoTime').value||'09:00',checkin_frequency:'daily',checkin_weekdays:[0,1,2,3,4,5,6],alert_on_yellow:$('protoYellow').checked,alert_on_red:true,missed_checkin_alert:$('protoMissed').checked,medication_reminder_enabled:true,followup_reminder_offsets:offsets});
-  if(error)return out($('protoMsg'),error.message);out($('protoMsg'),'Protocollo salvato.',true);$('protoName').value='';loadProtocols();
+  const plan=readProtocolPlan();
+  const{error}=await sb.from('monitoring_protocols').insert({clinician_id:uid,name,description:$('protoDesc').value.trim(),checkin_enabled:true,checkin_time:$('protoTime').value||'09:00',checkin_frequency:'daily',checkin_weekdays:[0,1,2,3,4,5,6],alert_on_yellow:$('protoYellow').checked,alert_on_red:true,missed_checkin_alert:$('protoMissed').checked,medication_reminder_enabled:true,followup_reminder_offsets:offsets,medication_plan:plan.medication_plan,followup_plan:plan.followup_plan,source_reference:$('protoDesc').value.includes('Fonte:')?'SICI-GISE / template verificato dal medico':null});
+  if(error)return out($('protoMsg'),error.message);out($('protoMsg'),'Protocollo salvato con '+plan.medication_plan.length+' farmaci e '+plan.followup_plan.length+' controlli.',true);$('protoName').value='';$('protoDesc').value='';clearProtocolPlan();loadProtocols();
 };
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();
