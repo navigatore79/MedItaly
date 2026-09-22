@@ -21,10 +21,10 @@ async function renderPublicLegal(key){
     document.querySelectorAll('a').forEach(a=>{
       try{
         const u=new URL(a.href);
-        if(u.origin===new URL(PUBLIC_LEGAL_REMOTE).origin && u.pathname.includes('/functions/v1/legal-docs')){
-          const doc=u.searchParams.get('doc')||'';
-          if(Object.prototype.hasOwnProperty.call(PUBLIC_LEGAL_PATHS,doc)) a.href=PUBLIC_LEGAL_PATHS[doc];
-        }
+        const doc=u.searchParams.get('doc')||'';
+        const isRemoteLegal=u.origin===new URL(PUBLIC_LEGAL_REMOTE).origin && u.pathname.includes('/functions/v1/legal-docs');
+        const isLocalDocParam=u.origin===location.origin && u.searchParams.has('doc');
+        if((isRemoteLegal||isLocalDocParam) && Object.prototype.hasOwnProperty.call(PUBLIC_LEGAL_PATHS,doc)) a.href=PUBLIC_LEGAL_PATHS[doc];
       }catch{}
     });
   }catch(e){
