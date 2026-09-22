@@ -1,5 +1,41 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0';
 
+const PUBLIC_LEGAL_PARAMS=new URLSearchParams(location.search);
+const PUBLIC_LEGAL_MODE=PUBLIC_LEGAL_PARAMS.has('legal');
+const PUBLIC_LEGAL_KEY=PUBLIC_LEGAL_PARAMS.get('legal')||'';
+const PUBLIC_LEGAL_ALLOWED=new Set(['','privacy','privacy-clinician','terms','security','retention','beta','medi-ai','ip','subprocessors']);
+const PUBLIC_LEGAL_REMOTE='https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs';
+const PUBLIC_LEGAL_PATHS={'':'/documenti','privacy':'/privacy','privacy-clinician':'/privacy-clinician','terms':'/terms','security':'/security','retention':'/retention','beta':'/beta','medi-ai':'/medi-ai','ip':'/proprieta-intellettuale','subprocessors':'/subprocessors'};
+
+async function renderPublicLegal(key){
+  if(!PUBLIC_LEGAL_ALLOWED.has(key)) key='';
+  const target=PUBLIC_LEGAL_REMOTE+(key?'?doc='+encodeURIComponent(key):'');
+  try{
+    const response=await fetch(target,{credentials:'omit',cache:'no-store'});
+    if(!response.ok) throw new Error('HTTP '+response.status);
+    const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
+    document.title=parsed.title||'Meditaly · Documenti';
+    document.head.querySelectorAll('style').forEach(x=>x.remove());
+    parsed.head.querySelectorAll('style').forEach(source=>{const st=document.createElement('style');st.textContent=source.textContent;document.head.appendChild(st);});
+    document.body.innerHTML=parsed.body.innerHTML;
+    document.querySelectorAll('a').forEach(a=>{
+      try{
+        const u=new URL(a.href);
+        if(u.origin===new URL(PUBLIC_LEGAL_REMOTE).origin && u.pathname.includes('/functions/v1/legal-docs')){
+          const doc=u.searchParams.get('doc')||'';
+          if(Object.prototype.hasOwnProperty.call(PUBLIC_LEGAL_PATHS,doc)) a.href=PUBLIC_LEGAL_PATHS[doc];
+        }
+      }catch{}
+    });
+  }catch(e){
+    document.body.innerHTML='<main style="font-family:system-ui,sans-serif;max-width:760px;margin:60px auto;padding:24px;color:#18385e"><h1>Meditaly</h1><h2>Documento temporaneamente non disponibile</h2><p>Riprova tra poco oppure contatta <a href="mailto:maiellociro@gmail.com">maiellociro@gmail.com</a>.</p></main>';
+  }
+}
+
+if(PUBLIC_LEGAL_MODE){
+  await renderPublicLegal(PUBLIC_LEGAL_KEY);
+}else{
+
 const SUPABASE_URL='https://ejlhgtodmcadmdhbujkf.supabase.co';
 const SUPABASE_KEY='sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM';
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -437,3 +473,4 @@ $('saveProto').onclick=async()=>{
 };
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();
+}
