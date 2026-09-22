@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0';
 const SUPABASE_URL='https://ejlhgtodmcadmdhbujkf.supabase.co';
 const SUPABASE_KEY='sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM';
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+const LEGAL_VERSION='2.1';
 const $=id=>document.getElementById(id); let me=null,patients=[],selected=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const fmt=d=>d?new Date(d).toLocaleString('it-IT'):'—';
@@ -14,7 +15,7 @@ function showAuthPane(register=false){
 $('tabLogin').onclick=()=>showAuthPane(false); $('tabRegister').onclick=()=>showAuthPane(true);
 $('togglePass').onclick=()=>{const input=$('pass');const show=input.type==='password';input.type=show?'text':'password';$('togglePass').textContent=show?'🙈':'👁';$('togglePass').setAttribute('aria-label',show?'Nascondi password':'Mostra password');input.focus();};
 $('forgotPass').onclick=async()=>{const email=$('email').value.trim();if(!email)return out($('authMsg'),'Inserisci prima la tua email.');const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/password-reset'});if(error)return out($('authMsg'),error.message);out($('authMsg'),'Email per il ripristino password inviata.',true);};
-$('registerDoctor').onclick=async()=>{const full=$('rName').value.trim(),email=$('rEmail').value.trim(),password=$('rPass').value,reg=$('rReg').value.trim();if(!full||!email||password.length<8||!reg)return out($('authMsg'),'Compila nome, email, password di almeno 8 caratteri e numero Albo.');if(!$('rPrivacy').checked||!$('rTerms').checked)return out($('authMsg'),'Completa la presa visione privacy e l’accettazione dei Termini.');localStorage.setItem('meditaly_clinician_pending_legal',JSON.stringify({version:'2.0'}));const{error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/account-confirmed',data:{full_name:full,requested_role:'Clinician',phone:$('rPhone').value.trim(),professional_registration_no:reg,center_code:$('rCenter').value.trim(),privacy_clinician_version:'2.0',terms_version:'2.0'}}});if(error)return out($('authMsg'),error.message);out($('authMsg'),'Richiesta inviata. Conferma l’email; l’amministratore dovrà poi approvare il profilo medico.',true);};
+$('registerDoctor').onclick=async()=>{const full=$('rName').value.trim(),email=$('rEmail').value.trim(),password=$('rPass').value,reg=$('rReg').value.trim();if(!full||!email||password.length<8||!reg)return out($('authMsg'),'Compila nome, email, password di almeno 8 caratteri e numero Albo.');if(!$('rPrivacy').checked||!$('rTerms').checked)return out($('authMsg'),'Completa la presa visione privacy e l’accettazione dei Termini.');localStorage.setItem('meditaly_clinician_pending_legal',JSON.stringify({version:LEGAL_VERSION}));const{error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/account-confirmed',data:{full_name:full,requested_role:'Clinician',phone:$('rPhone').value.trim(),professional_registration_no:reg,center_code:$('rCenter').value.trim(),privacy_clinician_version:LEGAL_VERSION,terms_version:LEGAL_VERSION}}});if(error)return out($('authMsg'),error.message);out($('authMsg'),'Richiesta inviata. Conferma l’email; l’amministratore dovrà poi approvare il profilo medico.',true);};
 
 $('login').onclick=async()=>{
   out($('authMsg'),'Accesso in corso…',true);
@@ -23,7 +24,7 @@ $('login').onclick=async()=>{
   boot();
 };
 $('logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
-async function persistClinicianLegal(){const raw=localStorage.getItem('meditaly_clinician_pending_legal');if(!raw)return;const u=(await sb.auth.getUser()).data.user;if(!u)return;try{const p=JSON.parse(raw);const rows=[{user_id:u.id,document_key:'privacy-clinician',document_version:p.version||'2.0',action:'acknowledged'},{user_id:u.id,document_key:'terms',document_version:p.version||'2.0',action:'accepted'}];const{error}=await sb.from('legal_acceptances').insert(rows);if(error)throw error;localStorage.removeItem('meditaly_clinician_pending_legal');}catch(e){console.warn('Clinician legal acceptance pending',e)}}
+async function persistClinicianLegal(){const raw=localStorage.getItem('meditaly_clinician_pending_legal');if(!raw)return;const u=(await sb.auth.getUser()).data.user;if(!u)return;try{const p=JSON.parse(raw);const rows=[{user_id:u.id,document_key:'privacy-clinician',document_version:p.version||LEGAL_VERSION,action:'acknowledged'},{user_id:u.id,document_key:'terms',document_version:p.version||LEGAL_VERSION,action:'accepted'}];const{error}=await sb.from('legal_acceptances').insert(rows);if(error)throw error;localStorage.removeItem('meditaly_clinician_pending_legal');}catch(e){console.warn('Clinician legal acceptance pending',e)}}
 async function renderMfa(){
   const box=$('mfaBody');
   const{data:f,error}=await sb.auth.mfa.listFactors();
@@ -57,8 +58,13 @@ async function boot(){
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
-  // BETA: 2FA temporaneamente disattivato per i test della dashboard clinica.
-  // Riattivare il controllo AAL2 prima dell'uso reale/produzione.
+  const{data:aal,error:aalError}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aalError)return out($('authMsg'),'Impossibile verificare il livello di autenticazione: '+aalError.message);
+  if(aal?.currentLevel!=='aal2'){
+    $('auth').classList.add('hidden');$('portal').classList.add('hidden');$('mfa').classList.remove('hidden');$('logout').classList.remove('hidden');
+    await renderMfa();
+    return;
+  }
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
 }
