@@ -29,47 +29,47 @@
   "rewrites": [
     {
       "source": "/documenti",
-      "destination": "/legal.html"
+      "destination": "/?legal="
     },
     {
       "source": "/privacy",
-      "destination": "/legal.html?doc=privacy"
+      "destination": "/?legal=privacy"
     },
     {
       "source": "/privacy-clinician",
-      "destination": "/legal.html?doc=privacy-clinician"
+      "destination": "/?legal=privacy-clinician"
     },
     {
       "source": "/terms",
-      "destination": "/legal.html?doc=terms"
+      "destination": "/?legal=terms"
     },
     {
       "source": "/security",
-      "destination": "/legal.html?doc=security"
+      "destination": "/?legal=security"
     },
     {
       "source": "/retention",
-      "destination": "/legal.html?doc=retention"
+      "destination": "/?legal=retention"
     },
     {
       "source": "/beta",
-      "destination": "/legal.html?doc=beta"
+      "destination": "/?legal=beta"
     },
     {
       "source": "/medi-ai",
-      "destination": "/legal.html?doc=medi-ai"
+      "destination": "/?legal=medi-ai"
     },
     {
       "source": "/ip",
-      "destination": "/legal.html?doc=ip"
+      "destination": "/?legal=ip"
     },
     {
       "source": "/proprieta-intellettuale",
-      "destination": "/legal.html?doc=ip"
+      "destination": "/?legal=ip"
     },
     {
       "source": "/subprocessors",
-      "destination": "/legal.html?doc=subprocessors"
+      "destination": "/?legal=subprocessors"
     }
   ]
 }
