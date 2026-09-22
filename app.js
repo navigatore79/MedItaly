@@ -45,9 +45,10 @@ async function renderMfa(){
   $('enrollMfa').onclick=async()=>{const{data,error}=await sb.auth.mfa.enroll({factorType:'totp',friendlyName:'Google Authenticator - Meditaly Clinica'});if(error)return out($('mfaMsg'),error.message);const qr=data.totp.qr_code||'',src=qr.startsWith('data:')?qr:(qr.trim().startsWith('<svg')?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr):qr);box.innerHTML='<h2>Scansiona il QR</h2><p class="muted">Apri Google Authenticator, aggiungi un account e poi inserisci il primo codice.</p><div style="display:grid;place-items:center;margin:14px 0"><img alt="QR 2FA" style="width:210px;height:210px;border:1px solid #dfe9ee;border-radius:16px;padding:10px;background:white" src="'+src+'"></div><div class="small muted" style="word-break:break-all;text-align:center">Chiave manuale: '+esc(data.totp.secret||'')+'</div><div class="field"><input id="otpSetup" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" style="text-align:center;font-size:24px;letter-spacing:.18em"></div><button id="verifySetup" class="btn full">Attiva 2FA</button><div id="mfaMsg"></div>';const input=$('otpSetup');input.oninput=()=>input.value=input.value.replace(/\D/g,'').slice(0,6);$('verifySetup').onclick=async()=>{const code=input.value.trim();if(code.length!==6)return out($('mfaMsg'),'Inserisci un codice a 6 cifre.');const{error}=await sb.auth.mfa.challengeAndVerify({factorId:data.id,code});if(error){input.value='';input.focus();return out($('mfaMsg'),'Codice non valido o scaduto. Riprova.');}await sb.auth.refreshSession();boot();};};
 }
 
-document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); $(b.dataset.view).classList.remove('hidden');
+  if(b.dataset.view==='appointments') await loadAppointments();
 });
 
 async function boot(){
@@ -206,7 +207,12 @@ async function openPatient(id){
   };
   $('applyProto').onclick=async()=>{
     const pid=$('patientProtocol').value; if(!pid)return out($('setMsg'),'Seleziona un protocollo.');
-    const{error}=await sb.rpc('assign_monitoring_protocol',{p_patient:id,p_protocol:pid}); if(error)return out($('setMsg'),error.message); out($('setMsg'),'Protocollo applicato.',true); setTimeout(()=>openPatient(id),400);
+    const{data,error}=await sb.rpc('apply_protocol_to_patient',{p_patient:id,p_protocol:pid,p_note:null});
+    if(error)return out($('setMsg'),error.message);
+    const meds=data?.medications_created||0, followups=data?.followups_created||0;
+    let pushed=false; if(data?.outbox_id)pushed=await dispatch(data.outbox_id);
+    out($('setMsg'),'Protocollo applicato: '+meds+' terapie e '+followups+' controlli aggiunti al percorso.'+(pushed?' Notifica inviata.':''),true);
+    setTimeout(()=>openPatient(id),700);
   };
   document.querySelectorAll('.preview-import').forEach(b=>b.onclick=async()=>{const{data,error}=await sb.storage.from('medical-reports').createSignedUrl(b.dataset.path,300);if(error)return alert(error.message);window.open(data.signedUrl,'_blank','noopener');});
   document.querySelectorAll('.confirm-import').forEach(b=>b.onclick=async()=>{const row=(imports.data||[]).find(x=>x.id===b.dataset.import);if(!row)return;let payload=row.structured_data||{};if(row.item_type==='therapy'){const name=prompt('Nome farmaco',payload.name||row.title);if(!name)return;const dose=prompt('Dose',payload.dose||'')??'';const times=prompt('Orari separati da virgola',(payload.times||[]).join(','))??'';payload={...payload,name,dose,times:times.split(',').map(x=>x.trim()).filter(Boolean)};}else if(row.item_type==='control'){const label=prompt('Nome controllo',payload.label||row.title);if(!label)return;const due=prompt('Data YYYY-MM-DD',payload.due_date||'')||'';if(!due)return;payload={...payload,label,due_date:due,type:payload.type||'visita'};}const{error}=await sb.rpc('clinician_review_care_import',{p_import:row.id,p_action:'confirm',p_payload:payload,p_note:null});if(error)return alert(error.message);alert('Elemento confermato.');openPatient(id);});
@@ -221,6 +227,53 @@ async function openPatient(id){
 async function dispatch(outboxId){
   try{const s=(await sb.auth.getSession()).data.session;if(!s||!outboxId)return false;const r=await fetch(SUPABASE_URL+'/functions/v1/dispatch-push',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.access_token},body:JSON.stringify({outbox_id:outboxId})});return r.ok}catch{return false}
 }
+
+async function loadAppointments(){
+  const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
+  const [{data:rows,error},{data:links}]=await Promise.all([
+    sb.from('appointments').select('*').eq('clinician_id',uid).order('created_at',{ascending:false}),
+    sb.from('patient_clinicians').select('patient_id').eq('clinician_id',uid).eq('active',true)
+  ]);
+  const ids=[...new Set((links||[]).map(x=>x.patient_id))];
+  let map={};
+  if(ids.length){const{data:p}=await sb.from('profiles').select('id,full_name').in('id',ids);for(const x of p||[])map[x.id]=x.full_name||'Paziente';}
+  const select=$('apptPatient'); if(select)select.innerHTML=ids.map(id=>'<option value="'+id+'">'+esc(map[id]||'Paziente')+'</option>').join('');
+  if(error){if($('appointmentList'))$('appointmentList').innerHTML='<div class="err">'+esc(error.message)+'</div>';return;}
+  const statusLabel={Requested:'Richiesto dal paziente',Proposed:'Proposto',Confirmed:'Confermato',Rejected:'Rifiutato',Cancelled:'Annullato',Completed:'Completato'};
+  if($('appointmentList'))$('appointmentList').innerHTML=(rows||[]).map(x=>{
+    const when=x.proposed_start?new Date(x.proposed_start).toLocaleString('it-IT'):(x.requested_date?esc(x.requested_date)+(x.requested_time_window?' · '+esc(x.requested_time_window):''):'Data da concordare');
+    const actions=x.status==='Requested'?'<div class="row" style="margin-top:8px"><button class="btn secondary appt-prefill" data-id="'+x.id+'" data-patient="'+x.patient_id+'">Proponi data</button><button class="btn danger appt-reject" data-id="'+x.id+'">Rifiuta</button></div>':x.status==='Proposed'?'<span class="small muted">In attesa della risposta del paziente.</span>':'';
+    return '<div class="item"><div class="row between"><div><b>'+esc(map[x.patient_id]||'Paziente')+'</b><div class="small muted">'+esc(statusLabel[x.status]||x.status)+' · '+when+'</div></div><span class="pill">'+esc(x.location_type==='video'?'Video':x.location_type==='phone'?'Telefonica':'In presenza')+'</span></div>'+(x.reason?'<div style="margin-top:5px">'+esc(x.reason)+'</div>':'')+actions+'</div>';
+  }).join('')||'<p class="muted">Nessun appuntamento o richiesta.</p>';
+
+  document.querySelectorAll('.appt-prefill').forEach(b=>b.onclick=()=>{
+    if($('apptPatient'))$('apptPatient').value=b.dataset.patient;
+    if($('apptReason'))$('apptReason').value='Riscontro alla richiesta del paziente';
+    $('apptStart')?.focus();
+  });
+  document.querySelectorAll('.appt-reject').forEach(b=>b.onclick=async()=>{
+    const{error}=await sb.rpc('respond_appointment',{p_appointment:b.dataset.id,p_accept:false,p_note:'Richiesta non accolta'});
+    if(error)return alert(error.message);loadAppointments();
+  });
+}
+$('refreshAppointments').onclick=()=>loadAppointments();
+$('proposeAppointment').onclick=async()=>{
+  const patient=$('apptPatient').value,start=$('apptStart').value;
+  if(!patient||!start)return out($('apptMsg'),'Seleziona paziente, data e ora.');
+  const{data,error}=await sb.rpc('propose_appointment',{
+    p_patient:patient,
+    p_start:new Date(start).toISOString(),
+    p_duration_minutes:Number($('apptDuration').value||30),
+    p_reason:$('apptReason').value.trim()||null,
+    p_location_type:$('apptLocationType').value,
+    p_location_label:$('apptLocation').value.trim()||null,
+    p_note:$('apptNote').value.trim()||null
+  });
+  if(error)return out($('apptMsg'),error.message);
+  const pushed=data?.outbox_id?await dispatch(data.outbox_id):false;
+  out($('apptMsg'),pushed?'Proposta inviata al paziente.':'Proposta registrata; la notifica push non è stata consegnata.',pushed);
+  $('apptStart').value='';$('apptReason').value='';$('apptNote').value='';loadAppointments();
+};
 
 async function loadRequests(){
  const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
