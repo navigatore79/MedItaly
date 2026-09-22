@@ -17,10 +17,13 @@ L'uso di dati sanitari reali resta bloccato finché non risultano formalmente ad
 
 Il limite organizzativo di 200 pazienti non è una soglia legale di esenzione.
 
+**Eccezione beta:** sospensione temporanea del 2FA dashboard per tutti gli account clinici/amministrativi fino a successiva riattivazione e verifica del flusso Google Authenticator.
+
 ## Test funzionali minimi
 
 - login/logout e reset password;
-- TOTP, ritentativo e AAL2;
+- accesso dashboard con password durante la sospensione temporanea del secondo fattore;
+- prima della riattivazione: test Google Authenticator/TOTP, ritentativo e AAL2;
 - registrazione medico e approvazione;
 - directory/profilo pubblico;
 - richieste paziente e collegamenti;
