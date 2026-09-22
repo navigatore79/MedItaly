@@ -249,10 +249,62 @@ async function loadDirectoryProfile(){
 }
 $('saveDirectory').onclick=async()=>{const uid=(await sb.auth.getUser()).data.user.id;const payload={clinician_id:uid,display_name:$('dirName').value.trim()||me.full_name,specialty:$('dirSpecialty').value.trim()||null,center_label:$('dirCenter').value.trim()||null,professional_registration_no:$('dirReg').value.trim()||null,directory_visible:$('dirVisible').checked,accepting_requests:$('dirAccept').checked,updated_at:new Date().toISOString()};const{error}=await sb.from('clinician_directory').upsert(payload,{onConflict:'clinician_id'});if(error)return out($('dirMsg'),error.message);out($('dirMsg'),'Profilo pubblico aggiornato.',true);};
 
+const GISE_PROTOCOL_TEMPLATES=[
+  {
+    id:'gise-pci-a',
+    name:'GISE Post-PCI · Percorso A',
+    source:'SICI-GISE / percorso follow-up post-PCI (2015)',
+    description:'Paziente post-PCI con disfunzione ventricolare sinistra (FE ≤45%). Nel documento: MMG post-dimissione, a 1 e 2 mesi con controlli ematochimici; visita cardiologica a 3 e 12 mesi e poi annuale se persiste la disfunzione; ecocardiogramma a 3 e 12 mesi se persiste, poi biennale.',
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:true
+  },
+  {
+    id:'gise-pci-b',
+    name:'GISE Post-PCI · Percorso B',
+    source:'SICI-GISE / percorso follow-up post-PCI (2015)',
+    description:'Paziente post-PCI senza disfunzione ventricolare sinistra ma con fattori di rischio clinici (SCA o diabete), anatomici (tronco comune, discendente prossimale o malattia trivasale severa) o procedurali (rivascolarizzazione incompleta/subottimale). Nel documento: MMG post-dimissione, 3 e 6 mesi; cardiologia entro 12 mesi, poi annuale; test provocativo entro 12 mesi e poi biennale, anticipabile a 3-6 mesi in casi selezionati.',
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:false
+  },
+  {
+    id:'gise-pci-c',
+    name:'GISE Post-PCI · Percorso C',
+    source:'SICI-GISE / percorso follow-up post-PCI (2015)',
+    description:'Paziente post-PCI che non rientra nei percorsi A o B. Nel documento: MMG post-dimissione e a 3 mesi con controlli ematochimici; visita cardiologica specialistica a 12 mesi; test provocativo non indicato di routine nel paziente asintomatico, salvo situazioni specifiche.',
+    time:'09:00', offsets:'7,1,0', yellow:false, missed:false
+  },
+  {
+    id:'gise-tavi',
+    name:'GISE TAVI · Follow-up',
+    source:'Documento di posizione SICI-GISE TAVI (2018)',
+    description:'Follow-up dopo TAVI. Il documento indica un primo controllo a 30 giorni con visita clinica, ECG a 12 derivazioni ed ecocardiogramma transtoracico; ECG Holter 24 h in caso di alterazioni del ritmo. Successivi controlli clinici almeno annuali, modulati sul quadro clinico.',
+    time:'09:00', offsets:'7,1,0', yellow:true, missed:true
+  }
+];
+
+function renderGiseTemplates(){
+  const box=$('giseTemplateList'); if(!box)return;
+  box.innerHTML=GISE_PROTOCOL_TEMPLATES.map((x,i)=>`
+    <div class="item">
+      <div class="row between"><div><b>${esc(x.name)}</b><div class="small muted">${esc(x.source)}</div></div><button class="btn secondary use-gise-template" data-i="${i}">Usa template</button></div>
+      <div class="small" style="margin-top:7px">${esc(x.description)}</div>
+    </div>`).join('');
+  document.querySelectorAll('.use-gise-template').forEach(b=>b.onclick=()=>{
+    const x=GISE_PROTOCOL_TEMPLATES[Number(b.dataset.i)]; if(!x)return;
+    $('protoName').value=x.name;
+    $('protoDesc').value=x.description+' Fonte: '+x.source+'. Verificare e personalizzare sul singolo paziente.';
+    $('protoTime').value=x.time;
+    $('protoOffsets').value=x.offsets;
+    $('protoYellow').checked=x.yellow;
+    $('protoMissed').checked=x.missed;
+    $('protoName').focus();
+    out($('protoMsg'),'Template caricato. Verifica i parametri e premi “Salva protocollo”.',true);
+  });
+}
+
 async function loadProtocols(){
   const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
   const{data}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).order('created_at',{ascending:false});
-  $('protocolList').innerHTML=(data||[]).map(x=>'<div class="item"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(x.description||'')+' · check-in '+esc(x.checkin_time?.slice(0,5)||'09:00')+'</div></div>').join('')||'<p class="muted">Nessun protocollo.</p>';
+  renderGiseTemplates();
+  $('protocolList').innerHTML=(data||[]).map(x=>'<div class="item"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(x.description||'')+' · check-in '+esc(x.checkin_time?.slice(0,5)||'09:00')+'</div></div>').join('')||'<p class="muted">Nessun protocollo salvato.</p>';
 }
 $('saveProto').onclick=async()=>{
   const name=$('protoName').value.trim();if(!name)return out($('protoMsg'),'Inserisci il nome.');
