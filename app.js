@@ -94,13 +94,6 @@ async function boot(){
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
-  const{data:aal,error:aalError}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-  if(aalError)return out($('authMsg'),'Impossibile verificare il livello di autenticazione: '+aalError.message);
-  if(aal?.currentLevel!=='aal2'){
-    $('auth').classList.add('hidden');$('portal').classList.add('hidden');$('mfa').classList.remove('hidden');$('logout').classList.remove('hidden');
-    await renderMfa();
-    return;
-  }
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
 }
