@@ -117,7 +117,7 @@ async function openPatient(id){
     <div class="row between"><div><h2>${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row"><span class="dot ${latest?.status||'gray'}"></span><span class="pill">${latest?esc(latest.status):'nessun check-in'}</span></div></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="settings">Protocollo</button></div>
     <div id="summary" class="tabp"><h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row"><span class="dot '+x.status+'"></span><b>'+esc(x.checkin_date)+'</b><span class="pill">'+esc(x.status)+'</span></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
-    <div id="therapy" class="tabp hidden"><div class="two"><div><h3>Nuova terapia</h3><div class="field"><label>Farmaco</label><input id="medName"></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div class="table-like">${(meds.data||[]).map(m=>'<div class="item"><b>'+esc(m.name)+' '+esc(m.dose||'')+'</b><div class="small muted">'+esc(m.route||'')+' · '+((m.medication_schedules||[]).map(s=>s.time_of_day?.slice(0,5)).filter(Boolean).join(', ')||'nessun orario')+' · '+(m.active?'Attiva':'Conclusa')+'</div></div>').join('')||'<p class="muted">Nessuna terapia.</p>'}</div></div></div></div>
+    <div id="therapy" class="tabp hidden"><div class="two"><div><h3>Nuova terapia</h3><div class="field" style="position:relative"><label>Farmaco</label><input id="medName" autocomplete="off" placeholder="Cerca per nome, principio attivo o AIC..."><div id="medCatalogResults" class="hidden" style="position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #dfe9ee;border-radius:12px;box-shadow:0 12px 30px rgba(15,52,66,.14);max-height:260px;overflow:auto"></div><div class="small muted" style="margin-top:6px">Ricerca su Anagrafica Farmaci AIFA · seleziona il medicinale, poi indica dose e modalità.</div></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div class="table-like">${(meds.data||[]).map(m=>'<div class="item"><b>'+esc(m.name)+' '+esc(m.dose||'')+'</b><div class="small muted">'+esc(m.route||'')+' · '+((m.medication_schedules||[]).map(s=>s.time_of_day?.slice(0,5)).filter(Boolean).join(', ')||'nessun orario')+' · '+(m.active?'Attiva':'Conclusa')+'</div></div>').join('')||'<p class="muted">Nessuna terapia.</p>'}</div></div></div></div>
     <div id="controls" class="tabp hidden"><div class="two"><div><h3>Nuovo controllo</h3><div class="field"><label>Titolo</label><input id="fuLabel"></div><div class="field"><label>Tipo</label><input id="fuType" value="visita"></div><div class="field"><label>Data</label><input id="fuDate" type="date"></div><div class="field"><label>Promemoria giorni prima</label><input id="fuOffsets" value="${esc((setts.data?.followup_reminder_offsets||[7,1,0]).join(','))}"></div><div class="field"><label>Note</label><textarea id="fuNotes" rows="2"></textarea></div><button id="saveFu" class="btn">Programma controllo</button><div id="fuMsg"></div></div><div><h3>Calendario</h3><div class="table-like">${(fu.data||[]).map(x=>'<div class="item"><b>'+esc(x.milestone_label)+'</b><div class="small muted">'+esc(x.due_date)+' · '+esc(x.milestone_type)+' · '+(x.completed?'Completato':'Da fare')+'</div></div>').join('')||'<p class="muted">Nessun controllo.</p>'}</div></div></div></div>
     <div id="chat" class="tabp hidden"><div class="two"><div><h3>Conversazione</h3><div id="chatBox" class="msgbox">${(msgs.data||[]).map(x=>'<div class="msg '+(x.sender_id===me.id?'mine':'')+'">'+esc(x.body)+'<div class="small muted">'+fmt(x.sent_at)+'</div></div>').join('')}</div><div class="field"><textarea id="chatText" rows="2" placeholder="Scrivi un messaggio..."></textarea></div><button id="sendChat" class="btn">Invia messaggio</button></div><div><h3>Notifica immediata</h3><p class="muted small">Sul lock screen viene mostrata solo una comunicazione generica Meditaly.</p><div class="field"><label>Titolo interno</label><input id="noticeTitle" value="Il medico vuole contattarti"></div><div class="field"><label>Messaggio nell'app</label><textarea id="noticeBody" rows="3">Apri Meditaly per una nuova comunicazione del tuo medico.</textarea></div><button id="sendNotice" class="btn">Invia notifica</button><div id="noticeMsg"></div></div></div></div>
     <div id="patientimports" class="tabp hidden"><h3>Invii del paziente</h3><p class="muted small">Controlla sempre i dati prima di confermare. Una foto/OCR può contenere errori.</p><div class="table-like">${(imports.data||[]).map(x=>`<div class="item"><div class="row"><b>${esc(x.title)}</b><span class="pill">${esc(x.item_type)}</span><span class="pill">${esc(x.status)}</span></div><div class="small muted">${esc(x.source_type)} · ${fmt(x.created_at)}</div>${x.ocr_text?`<details><summary>Testo riconosciuto</summary><div class="small">${esc(x.ocr_text)}</div></details>`:''}${x.storage_path?`<button class="btn secondary preview-import" data-path="${esc(x.storage_path)}" style="margin-top:10px">Apri foto/documento</button>`:''}${x.status==='Pending'?`<div class="row" style="margin-top:10px"><button class="btn confirm-import" data-import="${x.id}" data-type="${x.item_type}">Conferma</button><button class="btn danger reject-import" data-import="${x.id}">Rifiuta</button></div>`:''}</div>`).join('')||'<p class="muted">Nessun invio.</p>'}</div></div>
@@ -125,6 +125,51 @@ async function openPatient(id){
   </div>`;
   $('patientDetail').classList.remove('hidden');
   document.querySelectorAll('#patientDetail [data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#patientDetail [data-tab]').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('#patientDetail .tabp').forEach(x=>x.classList.add('hidden'));$(b.dataset.tab).classList.remove('hidden')});
+  // Ricerca farmaci AIFA: menu a tendina con ricerca, solo supporto anagrafico.
+  const medInput=$('medName'), medResults=$('medCatalogResults');
+  let medSearchTimer=null, medAbort=null;
+  function closeMedResults(){medResults.classList.add('hidden');medResults.innerHTML='';}
+  medInput.addEventListener('input',()=>{
+    clearTimeout(medSearchTimer);
+    const q=medInput.value.trim();
+    if(q.length<2){closeMedResults();return;}
+    medSearchTimer=setTimeout(async()=>{
+      try{
+        if(medAbort)medAbort.abort();
+        medAbort=new AbortController();
+        medResults.classList.remove('hidden');
+        medResults.innerHTML='<div class="item small muted">Ricerca AIFA…</div>';
+        const s=(await sb.auth.getSession()).data.session;
+        if(!s){closeMedResults();return;}
+        const r=await fetch(SUPABASE_URL+'/functions/v1/drug-catalog?q='+encodeURIComponent(q),{
+          headers:{'Authorization':'Bearer '+s.access_token},
+          signal:medAbort.signal
+        });
+        const j=await r.json();
+        if(!r.ok)throw new Error(j.error||'Ricerca non disponibile');
+        const items=j.items||[];
+        medResults.innerHTML=items.map((x,i)=>{
+          const sub=[x.active,x.form,x.pack,x.aic?'AIC '+x.aic:''].filter(Boolean).join(' · ');
+          return '<button type="button" class="aifa-drug" data-i="'+i+'" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #edf3f6;background:#fff;padding:11px 12px;cursor:pointer"><b>'+esc(x.name)+'</b><div class="small muted">'+esc(sub||x.company||'Medicinale AIFA')+'</div></button>';
+        }).join('')||'<div class="item small muted">Nessun medicinale trovato.</div>';
+        document.querySelectorAll('.aifa-drug').forEach(b=>b.onclick=()=>{
+          const x=items[Number(b.dataset.i)];
+          if(!x)return;
+          medInput.value=x.name;
+          medInput.dataset.aic=x.aic||'';
+          medInput.dataset.atc=x.atc||'';
+          closeMedResults();
+        });
+      }catch(e){
+        if(e.name==='AbortError')return;
+        medResults.classList.remove('hidden');
+        medResults.innerHTML='<div class="item small err">'+esc(e.message||'Ricerca AIFA non disponibile')+'</div>';
+      }
+    },280);
+  });
+  medInput.addEventListener('focus',()=>{if(medResults.innerHTML)medResults.classList.remove('hidden')});
+  document.addEventListener('click',e=>{if(!medInput.contains(e.target)&&!medResults.contains(e.target))closeMedResults()});
+
   $('saveMed').onclick=async()=>{
     const name=$('medName').value.trim(); if(!name)return out($('medMsg'),'Inserisci il farmaco.');
     const uid=(await sb.auth.getUser()).data.user.id;
