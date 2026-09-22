@@ -109,7 +109,7 @@ async function openPatient(id){
     sb.from('medications').select('*,medication_schedules(*)').eq('patient_id',id).order('created_at',{ascending:false}),
     sb.from('followup_milestones').select('*').eq('patient_id',id).order('due_date'),
     sb.from('chat_messages').select('*').or('sender_id.eq.'+id+',recipient_id.eq.'+id).order('sent_at'),
-    sb.from('patient_monitoring_settings').select('*').eq('patient_id',id).maybeSingle(),
+    sb.from('patient_monitoring_settings').select('*').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).maybeSingle(),
     sb.from('monitoring_protocols').select('*').eq('clinician_id',(await sb.auth.getUser()).data.user.id).eq('is_active',true),
     sb.from('patient_care_imports').select('*').eq('patient_id',id).order('created_at',{ascending:false})
   ]);
