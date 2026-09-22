@@ -6,27 +6,28 @@
   <meta name="theme-color" content="#0b68d1" />
   <title>Meditaly Clinica</title>
   <style>
-    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#17312d;background:#f4f8fb}
-    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#eef7ff,#f8fbfd 32%,#f4f8f7);min-height:100vh}
+    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#102b52;background:#f4f9ff}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#eef7ff,#fff 38%,#f4f9ff);min-height:100vh}
     button,input,select,textarea{font:inherit} button{cursor:pointer}
     .wrap{max-width:1280px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
-    .brand{font-size:28px;font-weight:900;color:#0b4da2}.brand span{color:#1c6b5b}.small{font-size:12px}.muted{color:#6b7d88}
+    .brand{font-size:28px;font-weight:900;color:#0965b5}.brand span{color:#194e86}.small{font-size:12px}.muted{color:#6b7d88}
     .card{background:#fff;border:1px solid #dfe9ee;border-radius:20px;padding:20px;box-shadow:0 12px 40px #24517a0c}
     .auth{max-width:520px;margin:60px auto}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}
     .field input,.field select,.field textarea{width:100%;border:1px solid #cedce4;border-radius:12px;padding:11px 12px;background:#fff}
     .btn{border:0;background:#0b68d1;color:#fff;padding:11px 15px;border-radius:12px;font-weight:800}.btn.secondary{background:#eef5f8;color:#17312d}.btn.full{width:100%}.btn.warn{background:#c47a00}.btn.danger{background:#b42318}
     .grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:flex;flex-direction:column;gap:8px;position:sticky;top:20px;height:max-content}
-    .nav button{border:0;background:#f1f6f8;padding:12px;border-radius:12px;text-align:left;font-weight:800;color:#36534e}.nav button.on{background:#0b68d1;color:#fff}
-    .hero{background:linear-gradient(135deg,#0b68d1,#1c6b5b);color:#fff;border-radius:20px;padding:22px;margin-bottom:16px}.hero h1{margin:0 0 6px}.hero p{margin:0;opacity:.9}
+    .nav button{border:0;background:#f1f6fb;padding:12px;border-radius:12px;text-align:left;font-weight:800;color:#365d82}.nav button.on{background:#0b68d1;color:#fff}
+    .hero{background:linear-gradient(135deg,#0b68d1,#3194da);color:#fff;border-radius:20px;padding:22px;margin-bottom:16px}.hero h1{margin:0 0 6px}.hero p{margin:0;opacity:.9}
     .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{background:#fff;border:1px solid #dfe9ee;border-radius:16px;padding:17px}.kpi b{font-size:28px;display:block;margin-top:6px}
     .section{margin-top:16px}.row{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}.right{margin-left:auto}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
     .list,.table-like{display:flex;flex-direction:column;gap:8px}.patient,.item{border:1px solid #e0e9ee;border-radius:14px;padding:13px;background:#fff}.patient{cursor:pointer}.patient:hover{background:#f7fbff}
     .pill{font-size:12px;border-radius:999px;padding:5px 9px;background:#eef5f8}.dot{width:12px;height:12px;border-radius:50%;display:inline-block}.green{background:#25a65a}.yellow{background:#f5b82e}.red{background:#dc3d3d}.gray{background:#b7c1c8}
     .attention{border-left:5px solid #dc3d3d}.warn{border-left:5px solid #f5b82e}.hidden{display:none!important}.ok{color:#17814b}.err{color:#b42318}.notice{padding:10px 12px;border-radius:12px;background:#eef7ff;color:#244b73}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tabs button{border:0;background:#eef5f8;padding:9px 12px;border-radius:10px}.tabs button.on{background:#17312d;color:#fff}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.tabs button{border:0;background:#eef5f8;padding:9px 12px;border-radius:10px}.tabs button.on{background:#104f8e;color:#fff}
     .msgbox{height:300px;overflow:auto;border:1px solid #e0e9ee;border-radius:14px;padding:10px;background:#f9fcfe}.msg{max-width:72%;margin:7px 0;padding:10px 12px;border-radius:15px;background:#eef3f5}.msg.mine{margin-left:auto;background:#dcebff}
     .footer{padding:24px 4px 8px;text-align:center;color:#7a8a92;font-size:12px}.beta{background:#fff4d8;color:#805c00;border-radius:10px;padding:10px 12px;margin-bottom:14px}
     .item details{margin-top:8px;padding:8px;background:#f7fafb;border-radius:10px}.item summary{cursor:pointer;font-weight:700}
+    .auth-premium{max-width:620px;border-color:#d6e8f7;box-shadow:0 22px 70px rgba(25,83,139,.10)}.clinica-login-hero{display:grid;grid-template-columns:1fr 110px;gap:16px;align-items:center;padding:20px;border:1px solid #d7e9f8;border-radius:18px;background:linear-gradient(135deg,#f2f9ff,#dff2ff);margin-bottom:18px}.clinica-login-hero h1{color:#0c376b;margin:4px 0 7px;font-size:27px;line-height:1.08}.clinica-login-hero p{margin:0;color:#5a7898;line-height:1.45}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.16em;color:#0d72c8}.clinica-heart{width:96px;height:86px;display:grid;place-items:center;background:linear-gradient(145deg,#ee4f56,#ce2937);color:#fff;border-radius:48% 48% 43% 43%;font-size:58px;line-height:1;box-shadow:0 12px 25px rgba(186,50,59,.18);position:relative}.clinica-heart span{position:absolute;color:#fff;font-size:35px}.legal-clinician{display:grid;gap:8px;padding:12px;border:1px solid #dce9f5;background:#f8fbff;border-radius:12px;font-size:12px;line-height:1.45;margin:12px 0}.legal-clinician a,.legal-links a{color:#0b6fc5;font-weight:800}.legal-links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}.footer{color:#6c83a0}.beta{background:#fff8e6;color:#755908;border:1px solid #eedda9}
     @media(max-width:900px){.grid{grid-template-columns:1fr}.nav{position:static;flex-direction:row;overflow:auto}.kpis{grid-template-columns:1fr 1fr}.two,.three{grid-template-columns:1fr}}
   </style>
 </head>
@@ -37,7 +38,8 @@
     <button id="logout" class="btn secondary hidden">Esci</button>
   </div>
 
-  <section id="auth" class="card auth">
+  <section id="auth" class="card auth auth-premium">
+    <div class="clinica-login-hero"><div><div class="eyebrow">MEDITALY CLINICA</div><h1>Follow-up sanitario, in un unico spazio.</h1><p>Monitoraggio quotidiano, terapie, controlli, referti e comunicazioni con i pazienti collegati.</p></div><div class="clinica-heart">♥<span>⌁</span></div></div>
     <div class="tabs"><button id="tabLogin" class="on">Accedi</button><button id="tabRegister">Registrazione medico</button></div>
     <div id="loginPane">
       <h2>Accesso medico</h2><p class="muted">Accedi con il tuo account Meditaly.</p>
@@ -54,6 +56,7 @@
       <div class="field"><label>Telefono</label><input id="rPhone" autocomplete="tel"></div>
       <div class="field"><label>Numero iscrizione Albo</label><input id="rReg"></div>
       <div class="field"><label>Codice centro (facoltativo)</label><input id="rCenter"></div>
+      <div class="legal-clinician"><label><input id="rPrivacy" type="checkbox"> Ho letto l'<a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=privacy-clinician">informativa privacy clinici v2.0</a>.</label><label><input id="rTerms" type="checkbox"> Accetto i <a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=terms">Termini v2.0</a>.</label></div>
       <button id="registerDoctor" class="btn full">Invia richiesta</button>
     </div>
     <div id="authMsg"></div>
@@ -161,7 +164,7 @@
     </div>
   </section>
 
-  <div class="footer">Meditaly · Dashboard clinica beta RC1</div>
+  <div class="footer"><div class="legal-links"><a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=privacy-clinician">Privacy clinici</a><a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=terms">Termini</a><a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=security">Sicurezza</a><a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=beta">Programma beta</a><a target="_blank" href="https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/legal-docs?doc=ip">Proprietà intellettuale</a></div>Meditaly · Dashboard clinica Beta 3 · Documenti v2.0</div>
 </div>
 
 <script type="module" src="app.js"></script>
