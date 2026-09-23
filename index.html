@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b68d1" />
   <title>Meditaly Clinica</title>
+  <link rel="icon" type="image/svg+xml" href="brand-heart.svg">
   <style>
     :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#102b52;background:#f4f9ff}
     *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#eef7ff,#fff 38%,#f4f9ff);min-height:100vh}
@@ -30,12 +31,17 @@
     .auth-premium{max-width:620px;border-color:#d6e8f7;box-shadow:0 22px 70px rgba(25,83,139,.10)}.clinica-login-hero{display:grid;grid-template-columns:1fr 110px;gap:16px;align-items:center;padding:20px;border:1px solid #d7e9f8;border-radius:18px;background:linear-gradient(135deg,#f2f9ff,#dff2ff);margin-bottom:18px}.clinica-login-hero h1{color:#0c376b;margin:4px 0 7px;font-size:27px;line-height:1.08}.clinica-login-hero p{margin:0;color:#5a7898;line-height:1.45}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.16em;color:#0d72c8}.clinica-heart{width:96px;height:86px;display:grid;place-items:center;background:linear-gradient(145deg,#ee4f56,#ce2937);color:#fff;border-radius:48% 48% 43% 43%;font-size:58px;line-height:1;box-shadow:0 12px 25px rgba(186,50,59,.18);position:relative}.clinica-heart span{position:absolute;color:#fff;font-size:35px}.legal-clinician{display:grid;gap:8px;padding:12px;border:1px solid #dce9f5;background:#f8fbff;border-radius:12px;font-size:12px;line-height:1.45;margin:12px 0}.legal-clinician a,.legal-links a{color:#0b6fc5;font-weight:800}.legal-links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}.footer{color:#6c83a0}.beta{background:#fff8e6;color:#755908;border:1px solid #eedda9}.doc-version{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef7ff;color:#245f95;font-weight:800;margin-top:8px}
     .patient-main{min-width:0;flex:1}.patient-quick{display:flex;gap:6px;margin-left:auto}.patient-quick button{border:1px solid #cddfec;background:#f7fbff;color:#15578e;border-radius:9px;padding:7px 9px;font-size:10px;font-weight:800}.patient-quick button:hover{background:#eaf5ff}.quick-protocol-create{margin-top:14px;padding:13px;border:1px dashed #bdd3e3;border-radius:13px;background:#f8fbfe}.quick-protocol-create>label{display:block;font-size:12px;font-weight:900;margin-bottom:7px}.quick-protocol-create input{min-width:0;flex:1;border:1px solid #cedce4;border-radius:10px;padding:10px}
     @media(max-width:900px){.grid{grid-template-columns:1fr}.nav{position:static;flex-direction:row;overflow:auto}.kpis{grid-template-columns:1fr 1fr}.two,.three{grid-template-columns:1fr}.patient.row{align-items:flex-start;flex-wrap:wrap}.patient-quick{width:100%;margin:8px 0 0 22px}.patient-quick button{flex:1}.patient .right{position:absolute;right:14px}}
+    @keyframes brandBreath{0%,88%,100%{transform:scale(1)}92%{transform:scale(1.065)}96%{transform:scale(1)}}@media(prefers-reduced-motion:reduce){.brand-mark img{animation:none}}
+    .health-pill{display:inline-flex;align-items:center;gap:6px;font-weight:800;border:1px solid transparent}.health-pill.green{background:#e7f7ed;color:#176639;border-color:#afe3bf}.health-pill.yellow{background:#fff4d7;color:#75500b;border-color:#f1d58d}.health-pill.red{background:#fee8e8;color:#a62332;border-color:#f0b9c0}.health-pill.gray{background:#edf1f5;color:#526273;border-color:#d5dde5}
+    .delivery-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:center}.delivery-item{border:1px solid #dce7f0;border-radius:14px;padding:13px 15px;margin:8px 0;background:#fff}.delivery-item strong{color:#173957}.delivery-meta{font-size:12px;color:#637b90;margin-top:5px}.delivery-status{display:inline-block;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:850;white-space:nowrap}.delivery-status.sent{background:#e3f3ff;color:#115b92}.delivery-status.read{background:#e6f7ee;color:#17683b}.delivery-status.failed{background:#fee9e8;color:#9e2d35}.delivery-status.pending{background:#fff3da;color:#8a6018}.delivery-status.unknown{background:#eef2f5;color:#526576}.delivery-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.delivery-tools select{max-width:270px;border:1px solid #cedce4;border-radius:10px;padding:9px;background:#fff}
+    .delivery-tools input{min-width:185px;max-width:270px;border:1px solid #cedce4;border-radius:10px;padding:9px;background:#fff}.delivery-chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 5px}.delivery-chips button{border:1px solid #d9e5ef;background:#f5f9fc;color:#355574;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750}.delivery-chips button.on{background:#155fa8;border-color:#155fa8;color:#fff}.delivery-chips button:focus-visible,.delivery-tools :focus-visible{outline:3px solid #7ab8f0;outline-offset:2px}
+    @media(max-width:900px){.delivery-grid{grid-template-columns:1fr 1fr}.delivery-grid>*:first-child{grid-column:1/-1}}@media(max-width:520px){.delivery-grid{grid-template-columns:1fr}.delivery-grid>*:first-child{grid-column:auto}}
   </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="brand-lockup"><div class="brand-mark">♥<span>⌁</span></div><div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">La tua salute, ogni giorno · Dashboard medico-paziente</div></div></div>
+    <div class="brand-lockup"><div class="brand-mark"><img src="brand-heart.svg" alt="" style="width:46px;height:46px;border-radius:15px;animation:brandBreath 5s ease-in-out infinite"></div><div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">La tua salute, ogni giorno · Dashboard medico-paziente</div></div></div>
     <button id="logout" class="btn secondary hidden">Esci</button>
   </div>
 
@@ -74,6 +80,9 @@
         <button data-view="appointments">Appuntamenti</button>
         <button data-view="protocols">Protocolli</button>
         <button data-view="messages">Messaggi</button>
+        <button data-view="delivery">Notifiche inviate</button>
+        <button id="adminNav" data-view="admin" class="hidden">Amministrazione</button>
+        <button id="testDoctorNav" data-view="testDoctor" class="hidden">Test Medico</button>
         <button data-view="requests">Richieste pazienti</button>
         <button data-view="profile">Profilo pubblico</button>
       </aside>
@@ -152,6 +161,20 @@
         <section id="messages" class="view hidden">
           <div class="card"><h2>Messaggi</h2><p class="muted">Apri un paziente per vedere la conversazione completa o inviare una comunicazione immediata.</p></div>
         </section>
+
+        <section id="delivery" class="view hidden">
+          <div class="card">
+            <div class="row between"><div><h2>Notifiche inviate</h2><p class="muted small">Registro delle comunicazioni inviate da te ai pazienti assegnati.</p></div><button id="refreshDelivery" class="btn secondary" type="button">Aggiorna</button></div>
+            <p class="notice small">«Accettata da FCM» conferma l'invio al servizio push; non prova che la notifica sia comparsa sul telefono. «Letta nell'app» compare quando il paziente la segna come letta.</p>
+            <div class="delivery-tools"><label for="deliveryFilter">Paziente</label><select id="deliveryFilter"><option value="">Tutti i pazienti</option></select><label for="deliverySearch">Cerca</label><input id="deliverySearch" type="search" placeholder="Titolo o paziente" autocomplete="off"><button id="composeDelivery" class="btn" type="button">Nuova notifica</button></div>
+            <div id="deliveryChips" class="delivery-chips" role="group" aria-label="Filtra notifiche per stato"></div>
+            <p id="deliverySummary" class="muted small" aria-live="polite"></p>
+            <div id="deliveryList" class="section" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section id="admin" class="view hidden"><div class="card"><h2>Amministrazione</h2><p class="muted">Richieste dei medici, account e assegnazioni. Visibile agli account con ruolo Administrator.</p><div id="adminContent"></div></div></section>
+        <section id="testDoctor" class="view hidden"><div class="card"><h2>Test Medico · ambiente di prova</h2><p class="notice">Questa vista è collegata all'account amministratore con cui hai effettuato l'accesso. Mostra i pazienti che hanno scelto Test Medico; non equivale a un profilo clinico verificato e non consente prescrizioni.</p><div id="testDoctorContent"></div></div></section>
 
         <section id="requests" class="view hidden">
           <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>
