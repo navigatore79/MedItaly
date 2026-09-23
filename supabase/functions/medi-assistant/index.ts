@@ -234,8 +234,10 @@ Deno.serve(async (req: Request) => {
     toolChoice = "required";
   }
 
+  const configuredModel = Deno.env.get("MEDI_OPENAI_MODEL") || "gpt-5-mini";
+  const model = ["gpt-5-mini", "gpt-5", "gpt-4.1-mini"].includes(configuredModel) ? configuredModel : "gpt-5-mini";
   const payload = {
-    model: Deno.env.get("MEDI_OPENAI_MODEL") || "gpt-5-mini",
+    model,
     reasoning: { effort: "low" },
     tools,
     tool_choice: toolChoice,
