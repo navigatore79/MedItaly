@@ -40,7 +40,7 @@ const SUPABASE_URL='https://ejlhgtodmcadmdhbujkf.supabase.co';
 const SUPABASE_KEY='sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM';
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
 const LEGAL_VERSION='2.1';
-const $=id=>document.getElementById(id); let me=null,patients=[],selected=null;
+const $=id=>document.getElementById(id); let me=null,patients=[],selected=null,workspace='doctor';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const fmt=d=>d?new Date(d).toLocaleString('it-IT'):'—';
 const healthLabel=s=>({green:'Bene',yellow:'Così così',red:'Non sto bene'})[s]||'Nessun check-in';
@@ -86,6 +86,7 @@ async function renderMfa(){
 }
 
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
+  if(b.classList.contains('hidden'))return;
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); $(b.dataset.view).classList.remove('hidden');
   if(b.dataset.view==='appointments') await loadAppointments();
@@ -95,21 +96,36 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='testDoctor')loadTestDoctor();
 });
 
+function setWorkspace(mode){
+  if(me?.role!=='Administrator')return;
+  workspace=['admin','doctor','test'].includes(mode)?mode:'admin';
+  $('workspaceMode').value=workspace;
+  const descriptions={admin:'Gestione account e assegnazioni.',doctor:'Vista clinica: solo pazienti realmente assegnati a questo account.',test:'Conversazioni di prova dei pazienti che hanno scelto Test Medico.'};
+  $('workspaceHint').textContent=descriptions[workspace];
+  document.querySelectorAll('.nav button').forEach(button=>{
+    const type=button.dataset.view;
+    button.classList.toggle('hidden',workspace==='admin'?type!=='admin':workspace==='test'?type!=='testDoctor':['admin','testDoctor'].includes(type));
+  });
+  const first=workspace==='admin'?'admin':workspace==='test'?'testDoctor':'overview';
+  document.querySelector(`.nav button[data-view="${first}"]`)?.click();
+}
+$('workspaceMode').onchange=e=>setWorkspace(e.target.value);
+
 async function boot(){
   const{data:{user}}=await sb.auth.getUser(); if(!user)return; await persistClinicianLegal();
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
-  $('adminNav').classList.toggle('hidden',me.role!=='Administrator');
-  $('testDoctorNav').classList.toggle('hidden',me.role!=='Administrator');
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
+  if(me.role==='Administrator'){$('workspaceSwitch').classList.remove('hidden');setWorkspace('admin');}
+  else{$('workspaceSwitch').classList.add('hidden');$('adminNav').classList.add('hidden');$('testDoctorNav').classList.add('hidden');document.querySelector('[data-view="overview"]').click();}
 }
 
 const deliveryLabel={sent:'Accettata da FCM',failed:'Invio fallito',pending:'In coda',read:'Letta nell’app',unknown:'Registrata nell’app'};
 async function messageRecipients(){
   const recipients=patients.map(x=>({id:x.patient_id,name:x.profile?.full_name||'Paziente',mode:'clinician'}));
-  if(me?.role!=='Administrator')return recipients;
+  if(me?.role!=='Administrator'||workspace==='doctor')return recipients;
   const {data:contacts,error}=await sb.from('patient_care_contacts').select('patient_id')
     .eq('test_support_admin_id',me.id).eq('initial_choice','test').not('choice_completed_at','is',null);
   if(error)throw error;
