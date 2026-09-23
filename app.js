@@ -107,25 +107,44 @@ async function boot(){
 }
 
 const deliveryLabel={sent:'Accettata da FCM',failed:'Invio fallito',pending:'In coda',read:'Letta nell’app',unknown:'Registrata nell’app'};
+async function messageRecipients(){
+  const recipients=patients.map(x=>({id:x.patient_id,name:x.profile?.full_name||'Paziente',mode:'clinician'}));
+  if(me?.role!=='Administrator')return recipients;
+  const {data:contacts,error}=await sb.from('patient_care_contacts').select('patient_id')
+    .eq('test_support_admin_id',me.id).eq('initial_choice','test').not('choice_completed_at','is',null);
+  if(error)throw error;
+  const ids=(contacts||[]).map(x=>x.patient_id).filter(id=>!recipients.some(p=>p.id===id));
+  if(ids.length){
+    const {data:profiles,error:profileError}=await sb.from('profiles').select('id,full_name,role').in('id',ids);
+    if(profileError)throw profileError;
+    recipients.push(...(profiles||[]).filter(p=>p.role==='Patient').map(p=>({id:p.id,name:p.full_name||'Paziente',mode:'test'})));
+  }
+  return recipients;
+}
 async function loadMessages(){
   const select=$('messagePatient'),list=$('messageThreads'),result=$('messagePageResult');
-  const ids=patients.map(x=>x.patient_id),previous=select.value;
-  select.innerHTML='<option value="">Scegli un paziente</option>'+patients.map(x=>`<option value="${esc(x.patient_id)}">${esc(x.profile?.full_name||'Paziente')}</option>`).join('');
+  let recipients;try{recipients=await messageRecipients();}catch(e){return out(list,'Impossibile caricare i destinatari: '+e.message);}
+  const ids=recipients.map(x=>x.id),previous=select.value;
+  select.innerHTML='<option value="">Scegli un paziente</option>'+recipients.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}${x.mode==='test'?' · Test Medico':''}</option>`).join('');
   if(ids.includes(previous))select.value=previous;
-  if(!ids.length){list.innerHTML='<p class="muted">Nessun paziente collegato alla vista clinica. Per i pazienti che hanno scelto Test Medico, usa la sezione Test Medico.</p>';return;}
+  if(!ids.length){list.innerHTML='<p class="notice">Nessun paziente ha completato il collegamento. Il paziente deve scegliere Test Medico nell’app, oppure un medico reale deve accettare la sua richiesta.</p>';return;}
   list.innerHTML='<p class="muted">Caricamento conversazioni…</p>';
   const {data,error}=await sb.from('chat_messages').select('sender_id,recipient_id,body,sent_at,is_read')
     .or(`sender_id.eq.${me.id},recipient_id.eq.${me.id}`).order('sent_at',{ascending:false}).limit(200);
   if(error){out(list,'Impossibile leggere i messaggi: '+error.message);return;}
   const last=new Map();for(const m of data||[]){const id=m.sender_id===me.id?m.recipient_id:m.sender_id;if(ids.includes(id)&&!last.has(id))last.set(id,m);}
-  list.innerHTML=patients.map(p=>{const m=last.get(p.patient_id);return `<button class="item message-thread" type="button" data-id="${esc(p.patient_id)}"><strong>${esc(p.profile?.full_name||'Paziente')}</strong><div class="small muted">${m?`${m.sender_id===me.id?'Tu: ':''}${esc(m.body.slice(0,130))} · ${fmt(m.sent_at)}`:'Nessun messaggio'}</div></button>`}).join('');
-  list.querySelectorAll('.message-thread').forEach(b=>b.onclick=async()=>{document.querySelector('[data-view="patients"]').click();await openPatient(b.dataset.id);$('patientDetail').querySelector('[data-tab="chat"]')?.click();$('chatText')?.focus();});
+  list.innerHTML=recipients.map(p=>{const m=last.get(p.id);return `<button class="item message-thread" type="button" data-id="${esc(p.id)}" data-mode="${p.mode}"><strong>${esc(p.name)}${p.mode==='test'?' · Test Medico':''}</strong><div class="small muted">${m?`${m.sender_id===me.id?'Tu: ':''}${esc(m.body.slice(0,130))} · ${fmt(m.sent_at)}`:'Nessun messaggio'}</div></button>`}).join('');
+  list.querySelectorAll('.message-thread').forEach(b=>b.onclick=async()=>{
+    if(b.dataset.mode==='test'){await document.querySelector('[data-view="testDoctor"]').onclick();$('testDoctorContent').querySelector(`.test-patient-open[data-id="${b.dataset.id}"]`)?.click();return;}
+    document.querySelector('[data-view="patients"]').click();await openPatient(b.dataset.id);$('patientDetail').querySelector('[data-tab="chat"]')?.click();$('chatText')?.focus();
+  });
   $('sendMessagePage').onclick=async()=>{
     const id=select.value,body=$('messageBody').value.trim(),button=$('sendMessagePage');
     if(!ids.includes(id)||!body)return out(result,'Scegli un paziente e scrivi il messaggio.');
     button.disabled=true;result.innerHTML='<p class="muted">Invio in corso…</p>';
     try{
-      const {data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body});
+      const mode=recipients.find(x=>x.id===id)?.mode;
+      const {data:outboxId,error}=await sb.rpc(mode==='test'?'test_support_send_message_push':'clinician_send_message_push',{p_patient:id,p_body:body});
       if(error)throw error;
       $('messageBody').value='';
       const sent=await dispatch(outboxId);
@@ -146,8 +165,9 @@ const deliveryStatus=(notice,outcomes)=>{
 async function loadDelivery(){
   const list=$('deliveryList');if(!list||!me)return;
   list.innerHTML='<p class="muted">Caricamento esiti…</p>';
-  const ids=patients.map(p=>p.patient_id);
-  if(!ids.length){list.innerHTML='<p class="muted">Nessun paziente assegnato.</p>';return;}
+  let recipients;try{recipients=await messageRecipients();}catch(e){return out(list,'Impossibile caricare destinatari: '+e.message);}
+  const ids=recipients.map(p=>p.id);
+  if(!ids.length){list.innerHTML='<p class="muted">Nessun paziente collegato.</p>';return;}
   const {data:rows,error}=await sb.from('notifications')
     .select('id,patient_id,title,notification_type,created_at,sent_at,is_read,read_at')
     .eq('sender_id',me.id).in('patient_id',ids).order('created_at',{ascending:false}).limit(100);
@@ -157,9 +177,9 @@ async function loadDelivery(){
     :{data:[],error:null};
   if(outcomeError){out(list,'Impossibile leggere gli esiti push: '+outcomeError.message);return;}
   const byNotice=new Map();for(const row of outcomes||[]){if(!byNotice.has(row.notification_id))byNotice.set(row.notification_id,[]);byNotice.get(row.notification_id).push(row);}
-  const names=new Map(patients.map(p=>[p.patient_id,p.profile?.full_name||'Paziente']));
+  const names=new Map(recipients.map(p=>[p.id,p.name]));
   const filter=$('deliveryFilter'),prev=filter.value,search=$('deliverySearch'),chips=$('deliveryChips');
-  filter.innerHTML='<option value="">Tutti i pazienti</option>'+patients.map(p=>`<option value="${esc(p.patient_id)}">${esc(names.get(p.patient_id))}</option>`).join('');
+  filter.innerHTML='<option value="">Tutti i pazienti</option>'+recipients.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.mode==='test'?' · Test Medico':''}</option>`).join('');
   filter.value=ids.includes(prev)?prev:'';
   const states=[['all','Tutte'],['unknown','Registrate'],['pending','In coda'],['sent','FCM'],['read','Lette'],['failed','Fallite']];
   const previousStatus=chips.querySelector('button.on')?.dataset.status||'all';
@@ -178,12 +198,19 @@ async function loadDelivery(){
       const when=sent?.sent_at?`FCM: ${fmt(sent.sent_at)}`:status==='failed'?'FCM: invio fallito':'FCM: non confermato';
       return `<div class="delivery-item delivery-grid"><div><strong>${esc(n.title)}</strong><div class="delivery-meta">${esc(names.get(n.patient_id))} · ${esc(n.notification_type)} · ${fmt(n.created_at)}</div></div><span class="delivery-status ${status}">${deliveryLabel[status]}</span><span class="delivery-meta">${esc(when)}${n.read_at?`<br>Lettura: ${fmt(n.read_at)}`:''}</span><button class="btn secondary delivery-open" data-patient="${esc(n.patient_id)}">Apri paziente</button></div>`;
     }).join('')||'<p class="muted">Nessuna comunicazione con questi filtri.</p>';
-    list.querySelectorAll('.delivery-open').forEach(b=>b.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(b.dataset.patient)});
+    list.querySelectorAll('.delivery-open').forEach(b=>b.onclick=async()=>{
+      const who=recipients.find(p=>p.id===b.dataset.patient);
+      if(who?.mode==='test'){await document.querySelector('[data-view="testDoctor"]').onclick();$('testDoctorContent').querySelector(`.test-patient-open[data-id="${b.dataset.patient}"]`)?.click();return;}
+      document.querySelector('[data-view="patients"]').click();openPatient(b.dataset.patient);
+    });
   };
   filter.onchange=draw;search.oninput=draw;
   chips.querySelectorAll('button').forEach(b=>b.onclick=()=>{chips.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');draw();});
   $('composeDelivery').onclick=async()=>{
     const id=filter.value||(ids.length===1?ids[0]:null);
+    if(id&&recipients.find(p=>p.id===id)?.mode==='test'){
+      await document.querySelector('[data-view="messages"]').onclick();$('messagePatient').value=id;$('messageBody').focus();return;
+    }
     document.querySelector('[data-view="patients"]').click();
     if(!id){$('patientSearch')?.focus();return;}
     await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();$('noticeTitle')?.focus();
@@ -234,7 +261,18 @@ async function loadTestDoctor(){
     const err=[checkins,meds,followups,intakes,conversation].find(x=>x.error)?.error;if(err)return out(detail,err.message);
     const taken=(intakes.data||[]).filter(x=>x.status==='taken').length;
     detail.innerHTML=`<div class="card"><h3>${esc(names.get(id)||'Paziente')} · percorso in sola lettura</h3><p>Assunzioni confermate oggi: <strong>${taken}</strong> di ${(intakes.data||[]).length} registrate</p><h4>Check-in</h4>${(checkins.data||[]).map(x=>`<div class="item">${healthPill(x.status)} ${esc(x.checkin_date)}</div>`).join('')||'Nessun check-in.'}<h4>Terapie</h4>${(meds.data||[]).map(x=>`<div class="item"><b>${esc(x.name)} ${esc(x.dose||'')}</b> · ${x.active?'Attiva':'Conclusa'}<div class="muted small">${(x.medication_schedules||[]).map(s=>esc(s.time_of_day?.slice(0,5))).join(', ')}</div></div>`).join('')||'Nessuna terapia.'}<h4>Controlli</h4>${(followups.data||[]).map(x=>`<div class="item">${esc(x.milestone_label)} · ${fmt(x.due_date)} · ${x.completed?'Completato':'Da effettuare'}</div>`).join('')||'Nessun controllo.'}</div><div class="card"><h3>Messaggi di prova</h3><p class="notice">Conversazione con il paziente in modalità Test Medico. Non usarla per prescrizioni o urgenze.</p><div class="list">${(conversation.data||[]).reverse().map(m=>`<div class="item"><b>${m.sender_id===me.id?'Tu':'Paziente'}</b> · ${fmt(m.sent_at)}<div>${esc(m.body)}</div></div>`).join('')||'<p class="muted">Nessun messaggio.</p>'}</div><label class="field"><span>Rispondi</span><textarea id="testChatBody" maxlength="4000" placeholder="Scrivi al paziente"></textarea></label><button id="testChatSend" class="btn">Invia messaggio</button><div id="testChatResult" aria-live="polite"></div></div>`;
-    $('testChatSend').onclick=async()=>{const body=$('testChatBody').value.trim();if(!body)return out($('testChatResult'),'Scrivi un messaggio.');$('testChatSend').disabled=true;const {error}=await sb.from('chat_messages').insert({sender_id:me.id,recipient_id:id,body});if(error){out($('testChatResult'),error.message);$('testChatSend').disabled=false;}else b.click();};
+    $('testChatSend').onclick=async()=>{
+      const body=$('testChatBody').value.trim(),button=$('testChatSend'),result=$('testChatResult');
+      if(!body)return out(result,'Scrivi un messaggio.');
+      button.disabled=true;result.innerHTML='<p class="muted">Invio in corso…</p>';
+      try{
+        const {data:outboxId,error}=await sb.rpc('test_support_send_message_push',{p_patient:id,p_body:body});
+        if(error)throw error;
+        const sent=await dispatch(outboxId);
+        await b.onclick();
+        out($('testChatResult'),sent?'Messaggio registrato e push accettata da FCM; lettura da verificare.':'Messaggio registrato, push non confermata. Verifica Notifiche inviate.',sent);
+      }catch(e){out(result,'Invio non riuscito: '+(e.message||'Riprova.'));button.disabled=false;}
+    };
   });
 }
 
