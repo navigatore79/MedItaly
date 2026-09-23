@@ -85,6 +85,7 @@
         <button data-view="messages">Messaggi</button>
         <button data-view="delivery">Notifiche inviate</button>
         <button id="adminNav" data-view="admin" class="hidden">Amministrazione</button>
+        <button id="marcoDoctorNav" data-view="marcoDoctor" class="hidden">Dr. Marco Test</button>
         <button id="testDoctorNav" data-view="testDoctor" class="hidden">Test Medico</button>
         <button data-view="requests">Richieste pazienti</button>
         <button data-view="profile">Profilo pubblico</button>
@@ -177,6 +178,7 @@
         </section>
 
         <section id="admin" class="view hidden"><div class="card"><h2>Amministrazione</h2><p class="muted">Richieste dei medici, account e assegnazioni. Visibile agli account con ruolo Administrator.</p><div id="adminContent"></div></div></section>
+        <section id="marcoDoctor" class="view hidden"><div class="card"><h2>Dr. Marco Test · collegamenti</h2><p class="notice">Vista amministrativa delle richieste e dei pazienti associati a questo account Clinician. Non dà accesso all'account di Marco né consente di scrivere messaggi a suo nome.</p><div id="marcoDoctorContent"></div></div></section>
         <section id="testDoctor" class="view hidden"><div class="card"><h2>Test Medico · ambiente di prova</h2><p class="notice">Questa vista è collegata all'account amministratore con cui hai effettuato l'accesso. Mostra i pazienti che hanno scelto Test Medico; non equivale a un profilo clinico verificato e non consente prescrizioni.</p><div id="testDoctorContent"></div></div></section>
 
         <section id="requests" class="view hidden">
