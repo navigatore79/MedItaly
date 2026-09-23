@@ -53,7 +53,20 @@ function showAuthPane(register=false){
 }
 $('tabLogin').onclick=()=>showAuthPane(false); $('tabRegister').onclick=()=>showAuthPane(true);
 $('togglePass').onclick=()=>{const input=$('pass');const show=input.type==='password';input.type=show?'text':'password';$('togglePass').textContent=show?'🙈':'👁';$('togglePass').setAttribute('aria-label',show?'Nascondi password':'Mostra password');input.focus();};
-$('forgotPass').onclick=async()=>{const email=$('email').value.trim();if(!email)return out($('authMsg'),'Inserisci prima la tua email.');const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/password-reset'});if(error)return out($('authMsg'),error.message);out($('authMsg'),'Email per il ripristino password inviata.',true);};
+$('forgotPass').onclick=async()=>{
+  const email=$('email').value.trim(),button=$('forgotPass');
+  if(!email)return out($('authMsg'),'Inserisci prima la tua email.');
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/password-reset'});
+    if(error)throw error;
+    out($('authMsg'),'Se questo indirizzo è registrato, riceverai un link per reimpostare la password. Controlla anche la cartella spam.',true);
+  }catch(error){
+    const limited=error.code==='over_email_send_rate_limit'||/email rate limit exceeded/i.test(error.message||'');
+    out($('authMsg'),limited?'Il servizio email ha raggiunto il limite temporaneo del progetto. Nessuna email è stata inviata: riprova più tardi.':error.message);
+  }finally{button.disabled=false}
+};
 $('registerDoctor').onclick=async()=>{const full=$('rName').value.trim(),email=$('rEmail').value.trim(),password=$('rPass').value,reg=$('rReg').value.trim();if(!full||!email||password.length<8||!reg)return out($('authMsg'),'Compila nome, email, password di almeno 8 caratteri e numero Albo.');if(!$('rPrivacy').checked||!$('rTerms').checked)return out($('authMsg'),'Completa la presa visione privacy e l’accettazione dei Termini.');localStorage.setItem('meditaly_clinician_pending_legal',JSON.stringify({version:LEGAL_VERSION}));const{error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:'https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/account-confirmed',data:{full_name:full,requested_role:'Clinician',phone:$('rPhone').value.trim(),professional_registration_no:reg,center_code:$('rCenter').value.trim(),privacy_clinician_version:LEGAL_VERSION,terms_version:LEGAL_VERSION}}});if(error)return out($('authMsg'),error.message);out($('authMsg'),'Richiesta inviata. Conferma l’email; l’amministratore dovrà poi approvare il profilo medico.',true);};
 
 $('login').onclick=async()=>{
