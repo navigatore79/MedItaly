@@ -159,7 +159,7 @@
         </section>
 
         <section id="messages" class="view hidden">
-          <div class="card"><h2>Messaggi</h2><p class="muted">Apri un paziente per vedere la conversazione completa o inviare una comunicazione immediata.</p></div>
+          <div class="card"><div class="row between"><div><h2>Messaggi</h2><p class="muted">Conversazioni con i pazienti collegati. Le notifiche push hanno un esito separato.</p></div><button id="refreshMessages" class="btn secondary" type="button">Aggiorna</button></div><div class="two"><div><h3>Conversazioni recenti</h3><div id="messageThreads" class="list"></div></div><div><h3>Invia messaggio</h3><div class="field"><label for="messagePatient">Paziente</label><select id="messagePatient"></select></div><div class="field"><label for="messageBody">Messaggio</label><textarea id="messageBody" rows="5" maxlength="4000" placeholder="Scrivi al paziente…"></textarea></div><button id="sendMessagePage" class="btn" type="button">Invia messaggio</button><div id="messagePageResult" role="status" aria-live="polite"></div></div></div></div>
         </section>
 
         <section id="delivery" class="view hidden">
