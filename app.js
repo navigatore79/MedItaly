@@ -91,6 +91,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='appointments') await loadAppointments();
   if(b.dataset.view==='delivery')loadDelivery();
   if(b.dataset.view==='admin')loadAdmin();
+  if(b.dataset.view==='testDoctor')loadTestDoctor();
 });
 
 async function boot(){
@@ -99,6 +100,7 @@ async function boot(){
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
   $('adminNav').classList.toggle('hidden',me.role!=='Administrator');
+  $('testDoctorNav').classList.toggle('hidden',me.role!=='Administrator');
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
 }
@@ -149,6 +151,37 @@ async function loadAdmin(){
   box.innerHTML=`<h3>Richieste medico</h3><div class="list">${(a.data||[]).map(x=>`<div class="item"><b>${esc(x.full_name)}</b> · Albo ${esc(x.professional_registration_no)} · ${esc(x.status)}<div class="muted small">${fmt(x.created_at)}</div>${x.status==='Pending'?`<button class="btn admin-review" data-id="${x.id}" data-approve="true">Approva</button> <button class="btn secondary admin-review" data-id="${x.id}" data-approve="false">Rifiuta</button>`:''}</div>`).join('')||'Nessuna richiesta.'}</div><h3>Account</h3><div class="list">${people.map(x=>`<div class="item"><b>${esc(x.full_name||'Utente')}</b> · ${esc(x.role)} · ${x.account_active?'Attivo':'Sospeso'}${x.id!==me.id?` <button class="btn secondary admin-account" data-id="${x.id}" data-active="${!x.account_active}">${x.account_active?'Sospendi':'Riattiva'}</button>`:''}</div>`).join('')}</div><h3>Assegnazioni attive</h3><div class="list">${(c.data||[]).map(x=>`<div class="item">${esc(name(x.patient_id))} → ${esc(name(x.clinician_id))}</div>`).join('')||'Nessuna assegnazione.'}</div>`;
   box.querySelectorAll('.admin-review').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.approve==='true'?'Approvare questa richiesta medico?':'Rifiutare questa richiesta medico?'))return;const {error}=await sb.rpc('admin_review_clinician_application',{p_application:b.dataset.id,p_approve:b.dataset.approve==='true'});if(error)alert(error.message);else loadAdmin();});
   box.querySelectorAll('.admin-account').forEach(b=>b.onclick=async()=>{if(!confirm('Confermare la modifica dello stato account?'))return;const {error}=await sb.rpc('admin_set_account_active',{p_user:b.dataset.id,p_active:b.dataset.active==='true'});if(error)alert(error.message);else loadAdmin();});
+}
+
+async function loadTestDoctor(){
+  const box=$('testDoctorContent');if(!box||me?.role!=='Administrator')return;
+  box.innerHTML='<p class="muted">Caricamento collegamenti di prova…</p>';
+  const {data:contacts,error}=await sb.from('patient_care_contacts')
+    .select('patient_id,initial_choice,choice_completed_at')
+    .eq('test_support_admin_id',me.id).order('updated_at',{ascending:false});
+  if(error)return out(box,error.message);
+  const ids=(contacts||[]).map(x=>x.patient_id);
+  const {data:profiles,error:profileError}=ids.length?await sb.from('profiles').select('id,full_name').in('id',ids):{data:[],error:null};
+  if(profileError)return out(box,profileError.message);
+  const names=new Map((profiles||[]).map(x=>[x.id,x.full_name||'Paziente']));
+  const selected=(contacts||[]).filter(x=>x.initial_choice==='test');
+  box.innerHTML=`<div class="row between"><p><strong>${selected.length}</strong> pazienti in modalità Test Medico · <strong>${ids.length}</strong> collegati al contatto test.</p><button id="refreshTestDoctor" class="btn secondary">Aggiorna</button></div><div class="list">${selected.map(x=>`<div class="item"><b>${esc(names.get(x.patient_id)||'Paziente')}</b><div class="small muted">Modalità test scelta il ${fmt(x.choice_completed_at)} · Nessuna prescrizione abilitata</div><button class="btn secondary test-patient-open" data-id="${x.patient_id}">Vedi percorso</button></div>`).join('')||'<p class="muted">Nessun paziente ha scelto la modalità test.</p>'}</div><div id="testPatientDetail" class="section"></div>`;
+  $('refreshTestDoctor').onclick=loadTestDoctor;
+  box.querySelectorAll('.test-patient-open').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.id,detail=$('testPatientDetail');if(!selected.some(x=>x.patient_id===id))return;
+    detail.innerHTML='<p class="muted">Caricamento percorso…</p>';
+    const [checkins,meds,followups,intakes,conversation]=await Promise.all([
+      sb.from('patient_daily_checkins').select('status,checkin_date,submitted_at').eq('patient_id',id).order('checkin_date',{ascending:false}).limit(7),
+      sb.from('medications').select('name,dose,active,medication_schedules(time_of_day)').eq('patient_id',id).order('created_at',{ascending:false}).limit(25),
+      sb.from('followup_milestones').select('milestone_label,due_date,completed').eq('patient_id',id).order('due_date').limit(20),
+      sb.from('medication_intakes').select('status,intake_date').eq('patient_id',id).eq('intake_date',new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'})),
+      sb.from('chat_messages').select('sender_id,recipient_id,body,sent_at,is_read').or(`and(sender_id.eq.${me.id},recipient_id.eq.${id}),and(sender_id.eq.${id},recipient_id.eq.${me.id})`).order('sent_at',{ascending:false}).limit(50)
+    ]);
+    const err=[checkins,meds,followups,intakes,conversation].find(x=>x.error)?.error;if(err)return out(detail,err.message);
+    const taken=(intakes.data||[]).filter(x=>x.status==='taken').length;
+    detail.innerHTML=`<div class="card"><h3>${esc(names.get(id)||'Paziente')} · percorso in sola lettura</h3><p>Assunzioni confermate oggi: <strong>${taken}</strong> di ${(intakes.data||[]).length} registrate</p><h4>Check-in</h4>${(checkins.data||[]).map(x=>`<div class="item">${healthPill(x.status)} ${esc(x.checkin_date)}</div>`).join('')||'Nessun check-in.'}<h4>Terapie</h4>${(meds.data||[]).map(x=>`<div class="item"><b>${esc(x.name)} ${esc(x.dose||'')}</b> · ${x.active?'Attiva':'Conclusa'}<div class="muted small">${(x.medication_schedules||[]).map(s=>esc(s.time_of_day?.slice(0,5))).join(', ')}</div></div>`).join('')||'Nessuna terapia.'}<h4>Controlli</h4>${(followups.data||[]).map(x=>`<div class="item">${esc(x.milestone_label)} · ${fmt(x.due_date)} · ${x.completed?'Completato':'Da effettuare'}</div>`).join('')||'Nessun controllo.'}</div><div class="card"><h3>Messaggi di prova</h3><p class="notice">Conversazione con il paziente in modalità Test Medico. Non usarla per prescrizioni o urgenze.</p><div class="list">${(conversation.data||[]).reverse().map(m=>`<div class="item"><b>${m.sender_id===me.id?'Tu':'Paziente'}</b> · ${fmt(m.sent_at)}<div>${esc(m.body)}</div></div>`).join('')||'<p class="muted">Nessun messaggio.</p>'}</div><label class="field"><span>Rispondi</span><textarea id="testChatBody" maxlength="4000" placeholder="Scrivi al paziente"></textarea></label><button id="testChatSend" class="btn">Invia messaggio</button><div id="testChatResult" aria-live="polite"></div></div>`;
+    $('testChatSend').onclick=async()=>{const body=$('testChatBody').value.trim();if(!body)return out($('testChatResult'),'Scrivi un messaggio.');$('testChatSend').disabled=true;const {error}=await sb.from('chat_messages').insert({sender_id:me.id,recipient_id:id,body});if(error){out($('testChatResult'),error.message);$('testChatSend').disabled=false;}else b.click();};
+  });
 }
 
 async function loadPatients(){
@@ -536,4 +569,3 @@ $('saveProto').onclick=async()=>{
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();
 }
-
