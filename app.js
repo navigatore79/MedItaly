@@ -620,7 +620,7 @@ async function loadRequests(){
  }
 }
 const PROCEDURE_DOCUMENT='/nomenclatori.html';
-const QUICK_PROCEDURES=[['89.7A.3','Prima visita cardiologica'],['89.7A.6','Prima visita chirurgica vascolare'],['89.7B.7','Prima visita oncologica']];
+const PROCEDURE_INDEX_URL='/nomenclatore-index.json';
 function careRow(kind, value={}){
  const med=kind==='med', row=document.createElement('div');row.className='item care-'+kind;
  row.innerHTML=med?
@@ -639,10 +639,11 @@ async function reviewLink(id,accept){
  if(!accept){const{error}=await sb.rpc('clinician_review_link_request',{p_request:id,p_accept:false,p_note:null});if(error)return alert(error.message);await loadPatients();await loadRequests();await loadOverview();return}
  const uid=(await sb.auth.getUser()).data.user.id,{data:protos,error}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).eq('is_active',true);
  if(error)return alert(error.message);
+ const index=await fetch(PROCEDURE_INDEX_URL).then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json()}).catch(()=>({items:[]}));
  let panel=$('careReviewPanel');if(!panel){panel=document.createElement('section');panel.id='careReviewPanel';panel.className='card section';$('linkRequestList').after(panel)}
  panel.innerHTML=`<h3>Prestazione e piano di follow-up</h3><p class="muted">Indica cosa è stato eseguito e quando. Controlla e modifica farmaci e controlli prima dell'invio.</p>
  <p><a href="${PROCEDURE_DOCUMENT}" target="_blank" rel="noopener noreferrer">Consulta i nomenclatori e scarica il PDF ufficiale</a></p>
- <label class="field">Cerca un codice rapido<input id="careSearch" placeholder="Es. visita cardiologica"></label><div id="careCodes"></div>
+ <label class="field">Cerca tra le prestazioni del Ministero<input id="careSearch" placeholder="Es. visita cardiologica"></label><div id="careCodes"></div>
  <div class="two"><label class="field">Codice, se presente nel nomenclatore<input id="careCode" maxlength="60" placeholder="Es. 89.7A.3"></label><label class="field">Data prestazione<input id="careDate" type="date"></label></div>
  <label class="field">Prestazione eseguita<input id="careLabel" maxlength="500" placeholder="Descrizione esatta"></label>
  <p class="muted small">Le procedure ospedaliere potrebbero non figurare nel nomenclatore ambulatoriale: descrivile senza attribuire un codice improprio.</p>
@@ -653,7 +654,7 @@ async function reviewLink(id,accept){
  <div class="row"><button type="button" id="careConfirm" class="btn">Conferma e invia al paziente</button><button type="button" id="careCancel" class="btn secondary">Annulla</button></div><div id="careResult" role="status" aria-live="polite"></div>`;
  $('careDate').max=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
  panel.scrollIntoView({behavior:'smooth',block:'start'});
- $('careSearch').oninput=()=>{const q=$('careSearch').value.toLowerCase().trim();$('careCodes').innerHTML=q.length<2?'':QUICK_PROCEDURES.filter(p=>p.join(' ').toLowerCase().includes(q)).map(p=>`<button type="button" class="btn secondary code-choice" data-code="${p[0]}" data-label="${esc(p[1])}">${p[0]} · ${esc(p[1])}</button>`).join('')||'<p class="muted small">Nessun risultato rapido; consulta il PDF completo.</p>';$('careCodes').querySelectorAll('.code-choice').forEach(button=>button.onclick=()=>{$('careCode').value=button.dataset.code;$('careLabel').value=button.dataset.label})};
+ $('careSearch').oninput=()=>{const q=$('careSearch').value.toLowerCase().trim();$('careCodes').innerHTML=q.length<2?'':(index.items||[]).filter(p=>(p.code+' '+p.label).toLocaleLowerCase('it-IT').includes(q)).slice(0,30).map(p=>`<button type="button" class="btn secondary code-choice" data-code="${esc(p.code)}" data-label="${esc(p.label)}">${esc(p.code)} · ${esc(p.label)} (pag. ${p.page})</button>`).join('')||'<p class="muted small">Nessun risultato nell’indice; consulta il PDF completo.</p>';$('careCodes').querySelectorAll('.code-choice').forEach(button=>button.onclick=()=>{$('careCode').value=button.dataset.code;$('careLabel').value=button.dataset.label})};
  $('careProtocol').onchange=()=>{const p=(protos||[]).find(x=>x.id===$('careProtocol').value);$('careMedRows').innerHTML='';$('careFollowRows').innerHTML='';(p?.medication_plan||[]).forEach(v=>careRow('med',v));(p?.followup_plan||[]).forEach(v=>careRow('follow',v))};
  $('careAddMed').onclick=()=>careRow('med');$('careAddFollow').onclick=()=>careRow('follow');$('careCancel').onclick=()=>panel.remove();
  $('careConfirm').onclick=async()=>{
