@@ -247,8 +247,8 @@ async function loadAdmin(){
   ]);
   if(a.error||u.error||c.error){out(box,[a.error,u.error,c.error].filter(Boolean).map(e=>e.message).join('; '));return;}
   const people=u.data||[],byId=new Map(people.map(p=>[p.id,p])),name=id=>byId.get(id)?.full_name||id;
-  const activePatients=people.filter(x=>x.role==='Patient'&&x.account_active),activeDoctors=people.filter(x=>x.role==='Clinician'&&x.account_active);
-  const activeLinks=(c.data||[]).filter(x=>byId.get(x.patient_id)?.role==='Patient'&&byId.get(x.clinician_id)?.role==='Clinician');
+  const activePatients=people.filter(x=>['Patient','Administrator'].includes(x.role)&&x.account_active),activeDoctors=people.filter(x=>x.role==='Clinician'&&x.account_active);
+  const activeLinks=(c.data||[]).filter(x=>['Patient','Administrator'].includes(byId.get(x.patient_id)?.role)&&byId.get(x.clinician_id)?.role==='Clinician');
   box.innerHTML=`<h3>Richieste medico</h3><div class="list">${(a.data||[]).map(x=>`<div class="item"><b>${esc(x.full_name)}</b> · Albo ${esc(x.professional_registration_no)} · ${esc(x.status)}<div class="muted small">${fmt(x.created_at)}</div>${x.status==='Pending'?`<button class="btn admin-review" data-id="${x.id}" data-approve="true">Approva</button> <button class="btn secondary admin-review" data-id="${x.id}" data-approve="false">Rifiuta</button>`:''}</div>`).join('')||'Nessuna richiesta.'}</div><h3>Account</h3><div class="list">${people.map(x=>`<div class="item"><b>${esc(x.full_name||'Utente')}</b> · ${esc(x.role)} · ${x.account_active?'Attivo':'Sospeso'}${x.id!==me.id?` <button class="btn secondary admin-account" data-id="${x.id}" data-active="${!x.account_active}">${x.account_active?'Sospendi':'Riattiva'}</button>`:''}</div>`).join('')}</div><h3>Associa paziente e medico</h3><p class="muted small">Se esiste una richiesta in attesa, l'associazione la segna come accettata. Test Medico è un percorso distinto.</p><div class="two"><label class="field">Paziente<select id="adminLinkPatient">${activePatients.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name||'Paziente')}</option>`).join('')}</select></label><label class="field">Medico<select id="adminLinkDoctor">${activeDoctors.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name||'Medico')}</option>`).join('')}</select></label></div><button id="adminAddLink" class="btn" type="button" ${!activePatients.length||!activeDoctors.length?'disabled':''}>Aggiungi associazione</button><div id="adminLinkResult" role="status" aria-live="polite"></div><h3>Associazioni attive</h3><div class="list">${activeLinks.map(x=>`<div class="item row between"><span>${esc(name(x.patient_id))} → ${esc(name(x.clinician_id))}</span><button type="button" class="btn danger admin-remove-link" data-patient="${esc(x.patient_id)}" data-doctor="${esc(x.clinician_id)}">Rimuovi</button></div>`).join('')||'Nessuna associazione tra pazienti e medici.'}</div>`;
   box.querySelectorAll('.admin-review').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.approve==='true'?'Approvare questa richiesta medico?':'Rifiutare questa richiesta medico?'))return;const {error}=await sb.rpc('admin_review_clinician_application',{p_application:b.dataset.id,p_approve:b.dataset.approve==='true'});if(error)alert(error.message);else loadAdmin();});
   box.querySelectorAll('.admin-account').forEach(b=>b.onclick=async()=>{if(!confirm('Confermare la modifica dello stato account?'))return;const {error}=await sb.rpc('admin_set_account_active',{p_user:b.dataset.id,p_active:b.dataset.active==='true'});if(error)alert(error.message);else loadAdmin();});
@@ -284,7 +284,7 @@ async function loadMarcoDoctor(){
   const ids=[...new Set([...(requests.data||[]).map(r=>r.patient_id),...(links.data||[]).map(l=>l.patient_id)])];
   const people=ids.length?await sb.from('profiles').select('id,full_name,role').in('id',ids):{data:[],error:null};
   if(people.error)return out(box,people.error.message);
-  const names=new Map((people.data||[]).filter(p=>p.role==='Patient').map(p=>[p.id,p.full_name||'Paziente']));
+  const names=new Map((people.data||[]).filter(p=>['Patient','Administrator'].includes(p.role)).map(p=>[p.id,p.full_name||'Paziente']));
   const active=new Set((links.data||[]).map(l=>l.patient_id));
   const requestRows=(requests.data||[]).filter(r=>names.has(r.patient_id)).map(r=>{
     const action=r.status==='Pending'&&!active.has(r.patient_id)&&doctor.data.account_active
@@ -356,7 +356,7 @@ async function loadPatients(){
     sb.from('profiles').select('id,full_name,date_of_birth,phone,role').in('id',ids),
     sb.from('patient_daily_checkins').select('*').in('patient_id',ids).order('submitted_at',{ascending:false})
   ]);
-  patients=ids.map(id=>({patient_id:id,profile:(pp||[]).find(p=>p.id===id),latest:(ci||[]).find(c=>c.patient_id===id)})).filter(x=>x.profile?.role==='Patient');
+  patients=ids.map(id=>({patient_id:id,profile:(pp||[]).find(p=>p.id===id),latest:(ci||[]).find(c=>c.patient_id===id)})).filter(x=>['Patient','Administrator'].includes(x.profile?.role)&&x.patient_id!==uid);
   renderPatients();
 }
 
