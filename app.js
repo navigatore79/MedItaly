@@ -106,6 +106,13 @@ async function boot(){
 }
 
 const deliveryLabel={sent:'Accettata da FCM',failed:'Invio fallito',pending:'In coda',read:'Letta nell’app',unknown:'Registrata nell’app'};
+const deliveryStatus=(notice,outcomes)=>{
+  if(notice.is_read)return 'read';
+  if(outcomes.some(x=>x.status==='sent'))return 'sent';
+  if(outcomes.some(x=>x.status==='pending'))return 'pending';
+  if(outcomes.length&&outcomes.every(x=>x.status==='failed'))return 'failed';
+  return 'unknown';
+};
 async function loadDelivery(){
   const list=$('deliveryList');if(!list||!me)return;
   list.innerHTML='<p class="muted">Caricamento esiti…</p>';
@@ -119,22 +126,39 @@ async function loadDelivery(){
     ?await sb.from('push_outbox').select('id,user_id,notification_id,status,created_at,sent_at').in('notification_id',notices.map(n=>n.id))
     :{data:[],error:null};
   if(outcomeError){out(list,'Impossibile leggere gli esiti push: '+outcomeError.message);return;}
-  const byNotice=new Map((outcomes||[]).map(o=>[o.notification_id,o]));
+  const byNotice=new Map();for(const row of outcomes||[]){if(!byNotice.has(row.notification_id))byNotice.set(row.notification_id,[]);byNotice.get(row.notification_id).push(row);}
   const names=new Map(patients.map(p=>[p.patient_id,p.profile?.full_name||'Paziente']));
-  const filter=$('deliveryFilter'),prev=filter.value;
+  const filter=$('deliveryFilter'),prev=filter.value,search=$('deliverySearch'),chips=$('deliveryChips');
   filter.innerHTML='<option value="">Tutti i pazienti</option>'+patients.map(p=>`<option value="${esc(p.patient_id)}">${esc(names.get(p.patient_id))}</option>`).join('');
   filter.value=ids.includes(prev)?prev:'';
+  const states=[['all','Tutte'],['unknown','Registrate'],['pending','In coda'],['sent','FCM'],['read','Lette'],['failed','Fallite']];
+  const previousStatus=chips.querySelector('button.on')?.dataset.status||'all';
+  chips.innerHTML=states.map(([key,label])=>`<button type="button" data-status="${key}" class="${previousStatus===key?'on':''}"></button>`).join('');
+  chips.querySelectorAll('button').forEach((button,index)=>button.textContent=states[index][1]);
+  const enhanced=notices.map(n=>({...n,delivery:deliveryStatus(n,byNotice.get(n.id)||[])}));
   const draw=()=>{
-    const shown=notices.filter(n=>!filter.value||n.patient_id===filter.value);
-    $('deliverySummary').textContent=`${shown.length} comunicazioni (ultime 100)`;
+    const base=enhanced.filter(n=>!filter.value||n.patient_id===filter.value);
+    const counts=Object.fromEntries(states.map(([key])=>[key,key==='all'?base.length:base.filter(n=>n.delivery===key).length]));
+    chips.querySelectorAll('button').forEach(b=>{b.textContent=`${states.find(x=>x[0]===b.dataset.status)[1]} · ${counts[b.dataset.status]}`;b.setAttribute('aria-pressed',b.classList.contains('on')?'true':'false');});
+    const active=chips.querySelector('button.on')?.dataset.status||'all',query=search.value.trim().toLocaleLowerCase('it');
+    const shown=base.filter(n=>(active==='all'||n.delivery===active)&&(!query||[n.title,names.get(n.patient_id),n.notification_type].some(s=>String(s||'').toLocaleLowerCase('it').includes(query))));
+    $('deliverySummary').textContent=`${shown.length} di ${base.length} comunicazioni mostrate (ultime 100 inviate).`;
     list.innerHTML=shown.map(n=>{
-      const o=byNotice.get(n.id),status=n.is_read?'read':o?.status==='sent'?'sent':o?.status==='failed'?'failed':o?.status==='pending'?'pending':'unknown';
-      const when=o?.sent_at?`FCM: ${fmt(o.sent_at)}`:o?.status==='failed'?'FCM: invio fallito':'FCM: non confermato';
+      const history=byNotice.get(n.id)||[],sent=history.find(x=>x.status==='sent'),status=n.delivery;
+      const when=sent?.sent_at?`FCM: ${fmt(sent.sent_at)}`:status==='failed'?'FCM: invio fallito':'FCM: non confermato';
       return `<div class="delivery-item delivery-grid"><div><strong>${esc(n.title)}</strong><div class="delivery-meta">${esc(names.get(n.patient_id))} · ${esc(n.notification_type)} · ${fmt(n.created_at)}</div></div><span class="delivery-status ${status}">${deliveryLabel[status]}</span><span class="delivery-meta">${esc(when)}${n.read_at?`<br>Lettura: ${fmt(n.read_at)}`:''}</span><button class="btn secondary delivery-open" data-patient="${esc(n.patient_id)}">Apri paziente</button></div>`;
-    }).join('')||'<p class="muted">Nessuna comunicazione per il filtro selezionato.</p>';
+    }).join('')||'<p class="muted">Nessuna comunicazione con questi filtri.</p>';
     list.querySelectorAll('.delivery-open').forEach(b=>b.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(b.dataset.patient)});
   };
-  filter.onchange=draw;draw();
+  filter.onchange=draw;search.oninput=draw;
+  chips.querySelectorAll('button').forEach(b=>b.onclick=()=>{chips.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');draw();});
+  $('composeDelivery').onclick=async()=>{
+    const id=filter.value||(ids.length===1?ids[0]:null);
+    document.querySelector('[data-view="patients"]').click();
+    if(!id){$('patientSearch')?.focus();return;}
+    await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();$('noticeTitle')?.focus();
+  };
+  draw();
 }
 $('refreshDelivery').onclick=loadDelivery;
 
@@ -334,12 +358,24 @@ async function openPatient(id){
   };
   $('sendChat').onclick=async()=>{
     const body=$('chatText').value.trim(); if(!body)return;
-    const{data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body}); if(error)return alert(error.message);
-    const ok=await dispatch(outboxId); $('chatText').value=''; openPatient(id);if(!ok)alert('Messaggio registrato nell’app; push non confermata. Controlla Notifiche inviate.');
+    const button=$('sendChat');button.disabled=true;
+    const{data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body});
+    if(error){button.disabled=false;return alert(error.message);}
+    const ok=await dispatch(outboxId);await openPatient(id);
+    document.querySelector('#patientDetail [data-tab="chat"]')?.click();
+    if(!ok)out($('noticeMsg'),'Messaggio registrato nell’app; push non confermata. Controlla Notifiche inviate.');
   };
   $('sendNotice').onclick=async()=>{
-    const{data:outboxId,error}=await sb.rpc('clinician_send_patient_notice',{p_patient:id,p_title:$('noticeTitle').value.trim(),p_message:$('noticeBody').value.trim(),p_kind:'Custom Message'});
-    if(error)return out($('noticeMsg'),error.message); const ok=await dispatch(outboxId); out($('noticeMsg'),ok?'Comunicazione registrata; invio push accettato da FCM.':'Comunicazione registrata nell’app; push non confermata.',ok);
+    const title=$('noticeTitle').value.trim(),body=$('noticeBody').value.trim(),button=$('sendNotice');
+    if(!title||!body)return out($('noticeMsg'),'Inserisci titolo e messaggio prima dell’invio.');
+    button.disabled=true;button.textContent='Invio in corso…';
+    try{
+      const{data:outboxId,error}=await sb.rpc('clinician_send_patient_notice',{p_patient:id,p_title:title,p_message:body,p_kind:'Custom Message'});
+      if(error)return out($('noticeMsg'),error.message);
+      const ok=await dispatch(outboxId);
+      out($('noticeMsg'),ok?'Registrata nell’app; accettata da FCM. La lettura del paziente è da verificare.':'Registrata nell’app; invio push non confermato. Controlla il registro.',ok);
+    }catch(e){out($('noticeMsg'),e.message||'Impossibile completare l’invio.');}
+    finally{button.disabled=false;button.textContent='Invia notifica';}
   };
   $('openProtocols').onclick=()=>document.querySelector('[data-view="protocols"]')?.click();
   $('createPatientProtocol').onclick=async()=>{const name=$('patientNewProtocolName').value.trim();if(!name)return out($('setMsg'),'Inserisci il nome del protocollo.');const uid=(await sb.auth.getUser()).data.user.id;const{data:newProtocol,error}=await sb.from('monitoring_protocols').insert({clinician_id:uid,name,description:'Creato dal profilo di '+(p?.full_name||'paziente'),checkin_enabled:true,checkin_time:$('setTime').value||'09:00',checkin_frequency:'daily',checkin_weekdays:[0,1,2,3,4,5,6],alert_on_yellow:$('setYellow').checked,alert_on_red:$('setRed').checked,medication_reminder_enabled:true,followup_reminder_offsets:[7,1,0]}).select().single();if(error)return out($('setMsg'),error.message);out($('setMsg'),'Protocollo aggiunto. Ora puoi selezionarlo e applicarlo.',true);setTimeout(()=>openPatient(id),500);};
