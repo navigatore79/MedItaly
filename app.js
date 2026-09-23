@@ -89,6 +89,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); $(b.dataset.view).classList.remove('hidden');
   if(b.dataset.view==='appointments') await loadAppointments();
+  if(b.dataset.view==='messages') await loadMessages();
   if(b.dataset.view==='delivery')loadDelivery();
   if(b.dataset.view==='admin')loadAdmin();
   if(b.dataset.view==='testDoctor')loadTestDoctor();
@@ -106,6 +107,35 @@ async function boot(){
 }
 
 const deliveryLabel={sent:'Accettata da FCM',failed:'Invio fallito',pending:'In coda',read:'Letta nell’app',unknown:'Registrata nell’app'};
+async function loadMessages(){
+  const select=$('messagePatient'),list=$('messageThreads'),result=$('messagePageResult');
+  const ids=patients.map(x=>x.patient_id),previous=select.value;
+  select.innerHTML='<option value="">Scegli un paziente</option>'+patients.map(x=>`<option value="${esc(x.patient_id)}">${esc(x.profile?.full_name||'Paziente')}</option>`).join('');
+  if(ids.includes(previous))select.value=previous;
+  if(!ids.length){list.innerHTML='<p class="muted">Nessun paziente collegato alla vista clinica. Per i pazienti che hanno scelto Test Medico, usa la sezione Test Medico.</p>';return;}
+  list.innerHTML='<p class="muted">Caricamento conversazioni…</p>';
+  const {data,error}=await sb.from('chat_messages').select('sender_id,recipient_id,body,sent_at,is_read')
+    .or(`sender_id.eq.${me.id},recipient_id.eq.${me.id}`).order('sent_at',{ascending:false}).limit(200);
+  if(error){out(list,'Impossibile leggere i messaggi: '+error.message);return;}
+  const last=new Map();for(const m of data||[]){const id=m.sender_id===me.id?m.recipient_id:m.sender_id;if(ids.includes(id)&&!last.has(id))last.set(id,m);}
+  list.innerHTML=patients.map(p=>{const m=last.get(p.patient_id);return `<button class="item message-thread" type="button" data-id="${esc(p.patient_id)}"><strong>${esc(p.profile?.full_name||'Paziente')}</strong><div class="small muted">${m?`${m.sender_id===me.id?'Tu: ':''}${esc(m.body.slice(0,130))} · ${fmt(m.sent_at)}`:'Nessun messaggio'}</div></button>`}).join('');
+  list.querySelectorAll('.message-thread').forEach(b=>b.onclick=async()=>{document.querySelector('[data-view="patients"]').click();await openPatient(b.dataset.id);$('patientDetail').querySelector('[data-tab="chat"]')?.click();$('chatText')?.focus();});
+  $('sendMessagePage').onclick=async()=>{
+    const id=select.value,body=$('messageBody').value.trim(),button=$('sendMessagePage');
+    if(!ids.includes(id)||!body)return out(result,'Scegli un paziente e scrivi il messaggio.');
+    button.disabled=true;result.innerHTML='<p class="muted">Invio in corso…</p>';
+    try{
+      const {data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body});
+      if(error)throw error;
+      $('messageBody').value='';
+      const sent=await dispatch(outboxId);
+      await loadMessages();select.value=id;
+      out(result,sent?'Messaggio registrato; invio push accettato da FCM. Lettura del paziente non verificata.':'Messaggio registrato nella conversazione; push non confermata. Controlla Notifiche inviate.',sent);
+    }catch(e){out(result,'Invio non riuscito: '+(e.message||'Riprova.'));}
+    finally{button.disabled=false;}
+  };
+}
+$('refreshMessages').onclick=loadMessages;
 const deliveryStatus=(notice,outcomes)=>{
   if(notice.is_read)return 'read';
   if(outcomes.some(x=>x.status==='sent'))return 'sent';
@@ -188,8 +218,8 @@ async function loadTestDoctor(){
   const {data:profiles,error:profileError}=ids.length?await sb.from('profiles').select('id,full_name').in('id',ids):{data:[],error:null};
   if(profileError)return out(box,profileError.message);
   const names=new Map((profiles||[]).map(x=>[x.id,x.full_name||'Paziente']));
-  const selected=(contacts||[]).filter(x=>x.initial_choice==='test');
-  box.innerHTML=`<div class="row between"><p><strong>${selected.length}</strong> pazienti in modalità Test Medico · <strong>${ids.length}</strong> collegati al contatto test.</p><button id="refreshTestDoctor" class="btn secondary">Aggiorna</button></div><div class="list">${selected.map(x=>`<div class="item"><b>${esc(names.get(x.patient_id)||'Paziente')}</b><div class="small muted">Modalità test scelta il ${fmt(x.choice_completed_at)} · Nessuna prescrizione abilitata</div><button class="btn secondary test-patient-open" data-id="${x.patient_id}">Vedi percorso</button></div>`).join('')||'<p class="muted">Nessun paziente ha scelto la modalità test.</p>'}</div><div id="testPatientDetail" class="section"></div>`;
+  const selected=(contacts||[]).filter(x=>x.initial_choice==='test'&&x.choice_completed_at);
+  box.innerHTML=`<div class="row between"><p><strong>${selected.length}</strong> pazienti in modalità Test Medico · <strong>${ids.length}</strong> con contatto test predisposto.</p><button id="refreshTestDoctor" class="btn secondary">Aggiorna</button></div><div class="list">${selected.map(x=>`<div class="item"><b>${esc(names.get(x.patient_id)||'Paziente')}</b><div class="small muted">Modalità test scelta il ${fmt(x.choice_completed_at)} · Nessuna prescrizione abilitata</div><button class="btn secondary test-patient-open" data-id="${x.patient_id}">Vedi percorso e messaggi</button></div>`).join('')||'<p class="notice">Nessun paziente ha ancora scelto Test Medico dall’app. Il contatto è predisposto, ma puoi inviare messaggi solo dopo la scelta del paziente.</p>'}</div><div id="testPatientDetail" class="section"></div>`;
   $('refreshTestDoctor').onclick=loadTestDoctor;
   box.querySelectorAll('.test-patient-open').forEach(b=>b.onclick=async()=>{
     const id=b.dataset.id,detail=$('testPatientDetail');if(!selected.some(x=>x.patient_id===id))return;
@@ -215,10 +245,10 @@ async function loadPatients(){
   const ids=(a||[]).map(x=>x.patient_id);
   if(!ids.length){patients=[];renderPatients();return;}
   const[{data:pp},{data:ci}]=await Promise.all([
-    sb.from('profiles').select('id,full_name,date_of_birth,phone').in('id',ids),
+    sb.from('profiles').select('id,full_name,date_of_birth,phone,role').in('id',ids),
     sb.from('patient_daily_checkins').select('*').in('patient_id',ids).order('submitted_at',{ascending:false})
   ]);
-  patients=ids.map(id=>({patient_id:id,profile:(pp||[]).find(p=>p.id===id),latest:(ci||[]).find(c=>c.patient_id===id)}));
+  patients=ids.map(id=>({patient_id:id,profile:(pp||[]).find(p=>p.id===id),latest:(ci||[]).find(c=>c.patient_id===id)})).filter(x=>x.profile?.role==='Patient');
   renderPatients();
 }
 
@@ -226,7 +256,7 @@ function renderPatients(){
   const q=($('patientSearch')?.value||'').toLowerCase();
   $('patientList').innerHTML=patients.filter(x=>(x.profile?.full_name||'').toLowerCase().includes(q)).map(x=>
     '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div></div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
-  ).join('')||'<p class="muted">Nessun paziente assegnato.</p>';
+  ).join('')||'<p class="notice">Nessun account paziente è ancora collegato a questa vista. Il profilo personale dell’amministratore non è un account paziente. Per le conversazioni di prova apri «Test Medico» dopo la scelta del paziente nell’app.</p>';
   document.querySelectorAll('.patient[data-id]').forEach(x=>x.onclick=()=>openPatient(x.dataset.id));
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
 }
@@ -247,8 +277,9 @@ $('patientSearch').oninput=renderPatients;
 
 async function loadOverview(){
   $('kPatients').textContent=patients.length;
+  $('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';
   const today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
-  const ids=patients.map(x=>x.patient_id); if(!ids.length)return;
+  const ids=patients.map(x=>x.patient_id); if(!ids.length){$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';return;}
   const[{data:c},{count:m}]=await Promise.all([
     sb.from('patient_daily_checkins').select('*').in('patient_id',ids).eq('checkin_date',today).order('submitted_at',{ascending:false}),
     sb.from('chat_messages').select('*',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false)
@@ -274,19 +305,21 @@ async function openPatient(id){
     sb.from('patient_care_imports').select('*').eq('patient_id',id).order('created_at',{ascending:false}),
     sb.from('medication_intakes').select('medication_schedule_id,intake_date,status').eq('patient_id',id).eq('intake_date',new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'}))
   ]);
+  const readErrors={summary:daily.error,therapy:meds.error,controls:fu.error,chat:msgs.error,patientimports:imports.error,settings:setts.error||protos.error};
+  const readError=key=>readErrors[key]?`<div class="err" role="alert">Impossibile caricare la sezione: ${esc(readErrors[key].message)}</div>`:'';
   const latest=daily.data?.[0];
   $('patientDetail').innerHTML=`<div class="card">
     <div class="row between"><div><h2>${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="settings">Protocollo</button></div>
-    <div id="summary" class="tabp"><h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
-    <div id="therapy" class="tabp hidden"><div class="two"><div><h3>Nuova terapia</h3><div class="field" style="position:relative"><label>Farmaco</label><input id="medName" autocomplete="off" placeholder="Cerca per nome, principio attivo o AIC..."><div id="medCatalogResults" class="hidden" style="position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #dfe9ee;border-radius:12px;box-shadow:0 12px 30px rgba(15,52,66,.14);max-height:260px;overflow:auto"></div><div class="small muted" style="margin-top:6px">Ricerca su Anagrafica Farmaci AIFA · seleziona il medicinale, poi indica dose e modalità.</div></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><p class="muted small">Gli orari registrati attivano i promemoria locali nell’app e il riepilogo serale.</p><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div class="table-like">${(meds.data||[]).map(m=>'<div class="item"><b>'+esc(m.name)+' '+esc(m.dose||'')+'</b><div class="small muted">'+esc(m.route||'')+' · '+((m.medication_schedules||[]).map(s=>s.time_of_day?.slice(0,5)).filter(Boolean).join(', ')||'nessun orario')+' · '+(m.active?'Attiva':'Conclusa')+'</div></div>').join('')||'<p class="muted">Nessuna terapia.</p>'}</div></div><div class="card section"><h3>Assunzioni confermate oggi</h3><div class="table-like">${(meds.data||[]).flatMap(m=>(m.medication_schedules||[]).map(sc=>({m,sc}))).map(({m,sc})=>`<div class="item">${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(m.name)}: ${esc((intakes.data||[]).find(x=>x.medication_schedule_id===sc.id)?.status==='taken'?'Assunto':(intakes.data||[]).find(x=>x.medication_schedule_id===sc.id)?.status==='skipped'?'Non assunto':'Non confermato')}</div>`).join('')||'Nessun orario previsto.'}</div></div></div>
-    <div id="controls" class="tabp hidden"><div class="two"><div><h3>Nuovo controllo</h3><div class="field"><label>Titolo</label><input id="fuLabel"></div><div class="field"><label>Tipo</label><input id="fuType" value="visita"></div><div class="field"><label>Data</label><input id="fuDate" type="date"></div><div class="field"><label>Promemoria giorni prima</label><input id="fuOffsets" value="${esc((setts.data?.followup_reminder_offsets||[7,1,0]).join(','))}"></div><div class="field"><label>Note</label><textarea id="fuNotes" rows="2"></textarea></div><button id="saveFu" class="btn">Programma controllo</button><div id="fuMsg"></div></div><div><h3>Calendario</h3><div class="table-like">${(fu.data||[]).map(x=>'<div class="item"><b>'+esc(x.milestone_label)+'</b><div class="small muted">'+esc(x.due_date)+' · '+esc(x.milestone_type)+' · '+(x.completed?'Completato':'Da fare')+'</div></div>').join('')||'<p class="muted">Nessun controllo.</p>'}</div></div></div></div>
-    <div id="chat" class="tabp hidden"><div class="two"><div><h3>Conversazione</h3><div id="chatBox" class="msgbox">${(msgs.data||[]).map(x=>'<div class="msg '+(x.sender_id===me.id?'mine':'')+'">'+esc(x.body)+'<div class="small muted">'+fmt(x.sent_at)+'</div></div>').join('')}</div><div class="field"><textarea id="chatText" rows="2" placeholder="Scrivi un messaggio..."></textarea></div><button id="sendChat" class="btn">Invia messaggio</button></div><div><h3>Notifica immediata</h3><p class="muted small">Sul lock screen viene mostrata solo una comunicazione generica Meditaly.</p><div class="field"><label>Titolo interno</label><input id="noticeTitle" value="Il medico vuole contattarti"></div><div class="field"><label>Messaggio nell'app</label><textarea id="noticeBody" rows="3">Apri Meditaly per una nuova comunicazione del tuo medico.</textarea></div><button id="sendNotice" class="btn">Invia notifica</button><div id="noticeMsg"></div></div></div></div>
-    <div id="patientimports" class="tabp hidden"><h3>Invii del paziente</h3><p class="muted small">Controlla sempre i dati prima di confermare. Una foto/OCR può contenere errori.</p><div class="table-like">${(imports.data||[]).map(x=>`<div class="item"><div class="row"><b>${esc(x.title)}</b><span class="pill">${esc(x.item_type)}</span><span class="pill">${esc(x.status)}</span></div><div class="small muted">${esc(x.source_type)} · ${fmt(x.created_at)}</div>${x.ocr_text?`<details><summary>Testo riconosciuto</summary><div class="small">${esc(x.ocr_text)}</div></details>`:''}${x.storage_path?`<button class="btn secondary preview-import" data-path="${esc(x.storage_path)}" style="margin-top:10px">Apri foto/documento</button>`:''}${x.status==='Pending'?`<div class="row" style="margin-top:10px"><button class="btn confirm-import" data-import="${x.id}" data-type="${x.item_type}">Conferma</button><button class="btn danger reject-import" data-import="${x.id}">Rifiuta</button></div>`:''}</div>`).join('')||'<p class="muted">Nessun invio.</p>'}</div></div>
-    <div id="settings" class="tabp hidden"><h3>Livello di monitoraggio</h3><div class="two"><div><div class="field"><label>Protocollo</label><select id="patientProtocol"><option value="">Personalizzato</option>${(protos.data||[]).map(x=>'<option value="'+x.id+'" '+(setts.data?.protocol_id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('')}</select></div><div class="row"><button id="applyProto" class="btn secondary">Applica protocollo</button><button id="openProtocols" class="btn secondary">Gestisci protocolli</button></div><div class="quick-protocol-create"><label>Nuovo protocollo rapido</label><div class="row"><input id="patientNewProtocolName" placeholder="Nome del protocollo"><button id="createPatientProtocol" class="btn">Aggiungi</button></div><div class="small muted">Crea un modello base; potrai completarlo nella sezione Protocolli.</div></div></div><div><div class="field"><label>Ora check-in</label><input id="setTime" type="time" value="${esc((setts.data?.checkin_time||'09:00').slice(0,5))}"></div><div class="row"><label><input id="setYellow" type="checkbox" ${setts.data?.alert_on_yellow?'checked':''}> Evidenzia giallo</label><label><input id="setRed" type="checkbox" ${setts.data?.alert_on_red!==false?'checked':''}> Evidenzia rosso</label></div><button id="saveSettings" class="btn" style="margin-top:12px">Salva personalizzazione</button><div id="setMsg"></div></div></div></div>
+    <div id="summary" class="tabp">${readError('summary')}<h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
+    <div id="therapy" class="tabp hidden">${readError('therapy')}<div class="two"><div><h3>Nuova terapia</h3><div class="field" style="position:relative"><label>Farmaco</label><input id="medName" autocomplete="off" placeholder="Cerca per nome, principio attivo o AIC..."><div id="medCatalogResults" class="hidden" style="position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #dfe9ee;border-radius:12px;box-shadow:0 12px 30px rgba(15,52,66,.14);max-height:260px;overflow:auto"></div><div class="small muted" style="margin-top:6px">Ricerca su Anagrafica Farmaci AIFA · seleziona il medicinale, poi indica dose e modalità.</div></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><p class="muted small">Gli orari registrati attivano i promemoria locali nell’app e il riepilogo serale.</p><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div class="table-like">${(meds.data||[]).map(m=>'<div class="item"><b>'+esc(m.name)+' '+esc(m.dose||'')+'</b><div class="small muted">'+esc(m.route||'')+' · '+((m.medication_schedules||[]).map(s=>s.time_of_day?.slice(0,5)).filter(Boolean).join(', ')||'nessun orario')+' · '+(m.active?'Attiva':'Conclusa')+'</div></div>').join('')||'<p class="muted">Nessuna terapia.</p>'}</div></div><div class="card section"><h3>Assunzioni confermate oggi</h3><div class="table-like">${(meds.data||[]).flatMap(m=>(m.medication_schedules||[]).map(sc=>({m,sc}))).map(({m,sc})=>`<div class="item">${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(m.name)}: ${esc((intakes.data||[]).find(x=>x.medication_schedule_id===sc.id)?.status==='taken'?'Assunto':(intakes.data||[]).find(x=>x.medication_schedule_id===sc.id)?.status==='skipped'?'Non assunto':'Non confermato')}</div>`).join('')||'Nessun orario previsto.'}</div></div></div></div>
+    <div id="controls" class="tabp hidden">${readError('controls')}<div class="two"><div><h3>Nuovo controllo</h3><div class="field"><label>Titolo</label><input id="fuLabel"></div><div class="field"><label>Tipo</label><input id="fuType" value="visita"></div><div class="field"><label>Data</label><input id="fuDate" type="date"></div><div class="field"><label>Promemoria giorni prima</label><input id="fuOffsets" value="${esc((setts.data?.followup_reminder_offsets||[7,1,0]).join(','))}"></div><div class="field"><label>Note</label><textarea id="fuNotes" rows="2"></textarea></div><button id="saveFu" class="btn">Programma controllo</button><div id="fuMsg"></div></div><div><h3>Calendario</h3><div class="table-like">${(fu.data||[]).map(x=>'<div class="item"><b>'+esc(x.milestone_label)+'</b><div class="small muted">'+esc(x.due_date)+' · '+esc(x.milestone_type)+' · '+(x.completed?'Completato':'Da fare')+'</div></div>').join('')||'<p class="muted">Nessun controllo.</p>'}</div></div></div></div>
+    <div id="chat" class="tabp hidden">${readError('chat')}<div class="two"><div><h3>Conversazione</h3><div id="chatBox" class="msgbox">${(msgs.data||[]).filter(x=>(x.sender_id===me.id&&x.recipient_id===id)||(x.sender_id===id&&x.recipient_id===me.id)).map(x=>'<div class="msg '+(x.sender_id===me.id?'mine':'')+'">'+esc(x.body)+'<div class="small muted">'+fmt(x.sent_at)+'</div></div>').join('')||'<p class="muted">Nessun messaggio.</p>'}</div><div class="field"><textarea id="chatText" rows="2" placeholder="Scrivi un messaggio..."></textarea></div><button id="sendChat" class="btn">Invia messaggio</button><div id="chatMsg" role="status" aria-live="polite"></div></div><div><h3>Notifica immediata</h3><p class="muted small">Sul lock screen viene mostrata solo una comunicazione generica Meditaly.</p><div class="field"><label>Titolo interno</label><input id="noticeTitle" value="Il medico vuole contattarti"></div><div class="field"><label>Messaggio nell'app</label><textarea id="noticeBody" rows="3">Apri Meditaly per una nuova comunicazione del tuo medico.</textarea></div><button id="sendNotice" class="btn">Invia notifica</button><div id="noticeMsg"></div></div></div></div>
+    <div id="patientimports" class="tabp hidden">${readError('patientimports')}<h3>Invii del paziente</h3><p class="muted small">Controlla sempre i dati prima di confermare. Una foto/OCR può contenere errori.</p><div class="table-like">${(imports.data||[]).map(x=>`<div class="item"><div class="row"><b>${esc(x.title)}</b><span class="pill">${esc(x.item_type)}</span><span class="pill">${esc(x.status)}</span></div><div class="small muted">${esc(x.source_type)} · ${fmt(x.created_at)}</div>${x.ocr_text?`<details><summary>Testo riconosciuto</summary><div class="small">${esc(x.ocr_text)}</div></details>`:''}${x.storage_path?`<button class="btn secondary preview-import" data-path="${esc(x.storage_path)}" style="margin-top:10px">Apri foto/documento</button>`:''}${x.status==='Pending'?`<div class="row" style="margin-top:10px"><button class="btn confirm-import" data-import="${x.id}" data-type="${x.item_type}">Conferma</button><button class="btn danger reject-import" data-import="${x.id}">Rifiuta</button></div>`:''}</div>`).join('')||'<p class="muted">Nessun invio.</p>'}</div></div>
+    <div id="settings" class="tabp hidden">${readError('settings')}<h3>Livello di monitoraggio</h3><div class="two"><div><div class="field"><label>Protocollo</label><select id="patientProtocol"><option value="">Personalizzato</option>${(protos.data||[]).map(x=>'<option value="'+x.id+'" '+(setts.data?.protocol_id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('')}</select></div><div class="row"><button id="applyProto" class="btn secondary">Applica protocollo</button><button id="openProtocols" class="btn secondary">Gestisci protocolli</button></div><div class="quick-protocol-create"><label>Nuovo protocollo rapido</label><div class="row"><input id="patientNewProtocolName" placeholder="Nome del protocollo"><button id="createPatientProtocol" class="btn">Aggiungi</button></div><div class="small muted">Crea un modello base; potrai completarlo nella sezione Protocolli.</div></div></div><div><div class="field"><label>Ora check-in</label><input id="setTime" type="time" value="${esc((setts.data?.checkin_time||'09:00').slice(0,5))}"></div><div class="row"><label><input id="setYellow" type="checkbox" ${setts.data?.alert_on_yellow?'checked':''}> Evidenzia giallo</label><label><input id="setRed" type="checkbox" ${setts.data?.alert_on_red!==false?'checked':''}> Evidenzia rosso</label></div><button id="saveSettings" class="btn" style="margin-top:12px">Salva personalizzazione</button><div id="setMsg"></div></div></div></div>
   </div>`;
   $('patientDetail').classList.remove('hidden');
-  document.querySelectorAll('#patientDetail [data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#patientDetail [data-tab]').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('#patientDetail .tabp').forEach(x=>x.classList.add('hidden'));$(b.dataset.tab).classList.remove('hidden')});
+  document.querySelectorAll('#patientDetail [data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#patientDetail [data-tab]').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('#patientDetail .tabp').forEach(x=>x.classList.add('hidden'));$('patientDetail').querySelector('#'+b.dataset.tab)?.classList.remove('hidden')});
   // Ricerca farmaci AIFA: menu a tendina con ricerca, solo supporto anagrafico.
   const medInput=$('medName'), medResults=$('medCatalogResults');
   let medSearchTimer=null, medAbort=null;
@@ -357,15 +390,17 @@ async function openPatient(id){
     if(error)return out($('fuMsg'),error.message);out($('fuMsg'),'Controllo programmato.',true);setTimeout(()=>openPatient(id),500);
   };
   $('sendChat').onclick=async()=>{
-    const body=$('chatText').value.trim(); if(!body)return;
-    const button=$('sendChat');button.disabled=true;
-    const{data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body});
-    if(error){button.disabled=false;return alert(error.message);}
-    const ok=await dispatch(outboxId);await openPatient(id);
-    document.querySelector('#patientDetail [data-tab="chat"]')?.click();
-    if(!ok)out($('noticeMsg'),'Messaggio registrato nell’app; push non confermata. Controlla Notifiche inviate.');
+    const body=$('chatText').value.trim();if(!body)return out($('chatMsg'),'Scrivi un messaggio prima di inviare.');
+    const button=$('sendChat');button.disabled=true;$('chatMsg').innerHTML='<p class="muted">Invio in corso…</p>';
+    try{
+      const{data:outboxId,error}=await sb.rpc('clinician_send_message_push',{p_patient:id,p_body:body});
+      if(error)throw error;
+      const ok=await dispatch(outboxId);await openPatient(id);
+      $('patientDetail').querySelector('[data-tab="chat"]')?.click();
+      out($('chatMsg'),ok?'Messaggio registrato; push accettata da FCM. Lettura da verificare.':'Messaggio registrato nella conversazione; push non confermata. Controlla Notifiche inviate.',ok);
+    }catch(e){out($('chatMsg'),'Invio non riuscito: '+(e.message||'Riprova.'));button.disabled=false;}
   };
-  $('sendNotice').onclick=async()=>{
+    $('sendNotice').onclick=async()=>{
     const title=$('noticeTitle').value.trim(),body=$('noticeBody').value.trim(),button=$('sendNotice');
     if(!title||!body)return out($('noticeMsg'),'Inserisci titolo e messaggio prima dell’invio.');
     button.disabled=true;button.textContent='Invio in corso…';
