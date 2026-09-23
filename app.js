@@ -637,11 +637,15 @@ function careRow(kind, value={}){
  }}}
 async function reviewLink(id,accept){
  if(!accept){const{error}=await sb.rpc('clinician_review_link_request',{p_request:id,p_accept:false,p_note:null});if(error)return alert(error.message);await loadPatients();await loadRequests();await loadOverview();return}
- const uid=(await sb.auth.getUser()).data.user.id,{data:protos,error}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).eq('is_active',true);
+ const uid=(await sb.auth.getUser()).data.user.id;
+ const {data:request,error:requestError}=await sb.from('patient_clinician_requests').select('patient_id,status').eq('id',id).eq('clinician_id',uid).maybeSingle();
+ if(requestError||!request||request.status!=='Pending')return alert('Richiesta non disponibile o già gestita.');
+ const {data:patient}=await sb.from('profiles').select('full_name').eq('id',request.patient_id).maybeSingle();
+ const {data:protos,error}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).eq('is_active',true);
  if(error)return alert(error.message);
  const index=await fetch(PROCEDURE_INDEX_URL).then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json()}).catch(()=>({items:[]}));
  let panel=$('careReviewPanel');if(!panel){panel=document.createElement('section');panel.id='careReviewPanel';panel.className='card section';$('linkRequestList').after(panel)}
- panel.innerHTML=`<h3>Prestazione e piano di follow-up</h3><p class="muted">Indica cosa è stato eseguito e quando. Controlla e modifica farmaci e controlli prima dell'invio.</p>
+ panel.innerHTML=`<h3>Prestazione e piano di follow-up · ${esc(patient?.full_name||'Paziente')}</h3><p class="muted">Indica cosa è stato eseguito e quando. Controlla e modifica farmaci e controlli prima dell'invio.</p>
  <p><a href="${PROCEDURE_DOCUMENT}" target="_blank" rel="noopener noreferrer">Consulta i nomenclatori e scarica il PDF ufficiale</a></p>
  <label class="field">Cerca tra le prestazioni del Ministero<input id="careSearch" placeholder="Es. visita cardiologica"></label><div id="careCodes"></div>
  <div class="two"><label class="field">Codice, se presente nel nomenclatore<input id="careCode" maxlength="60" placeholder="Es. 89.7A.3"></label><label class="field">Data prestazione<input id="careDate" type="date"></label></div>
