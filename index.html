@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b68d1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="/clinica.webmanifest" />
+  <link rel="apple-touch-icon" href="/clinica-192.png" />
   <title>Meditaly Clinica</title>
   <link rel="icon" type="image/svg+xml" href="brand-heart.svg">
   <style>
@@ -51,7 +55,7 @@
   <div class="top">
     <div class="brand-lockup"><div class="brand-mark"><img src="brand-heart.svg" alt="" style="width:46px;height:46px;border-radius:15px;animation:brandBreath 5s ease-in-out infinite"></div><div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">La tua salute, ogni giorno · Dashboard medico-paziente</div></div></div>
     <div id="workspaceSwitch" class="workspace-switch hidden"><label for="workspaceMode">Area di lavoro</label><select id="workspaceMode"><option value="admin">Amministratore</option><option value="doctor">Medico</option><option value="test">Test Medico</option></select><small id="workspaceHint"></small></div>
-    <button id="logout" class="btn secondary hidden">Esci</button>
+    <div class="row"><button id="installClinicianApp" type="button" class="btn secondary hidden">Installa app</button><button id="logout" class="btn secondary hidden">Esci</button></div>
   </div>
 
   <section id="auth" class="card auth auth-premium">

@@ -163,6 +163,13 @@ async function boot(){
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
   if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
+  if(me.role==='Clinician'){
+    const {data:assurance,error:mfaError}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(mfaError||assurance?.currentLevel!=='aal2'){
+      $('auth').classList.add('hidden');$('portal').classList.add('hidden');$('mfa').classList.remove('hidden');
+      await renderMfa();return;
+    }
+  }
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
   await loadPatients(); await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
   if(me.role==='Administrator'){$('workspaceSwitch').classList.remove('hidden');setWorkspace('admin');}
@@ -901,5 +908,11 @@ $('saveProto').onclick=async()=>{
 };
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();
-setInterval(()=>{if(me && document.visibilityState==='visible' && !$('portal').classList.contains('hidden') && workspace==='doctor')loadOverview();},60000);
+if('serviceWorker' in navigator && location.protocol==='https:')navigator.serviceWorker.register('/clinica-sw.js').catch(error=>console.warn('Installazione app non disponibile',error));
+let clinicianInstallPrompt=null;
+const installButton=$('installClinicianApp');
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();clinicianInstallPrompt=event;installButton.classList.remove('hidden');});
+installButton.onclick=async()=>{if(clinicianInstallPrompt){const prompt=clinicianInstallPrompt;clinicianInstallPrompt=null;installButton.classList.add('hidden');await prompt.prompt();return;}alert('Su iPhone: apri Safari, tocca Condividi e poi “Aggiungi alla schermata Home”.');};
+if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!navigator.standalone)installButton.classList.remove('hidden');
+window.addEventListener('appinstalled',()=>installButton.classList.add('hidden'));
 }
