@@ -901,4 +901,5 @@ $('saveProto').onclick=async()=>{
 };
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();
+setInterval(()=>{if(me && document.visibilityState==='visible' && !$('portal').classList.contains('hidden') && workspace==='doctor')loadOverview();},60000);
 }
