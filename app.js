@@ -65,6 +65,37 @@ function therapyRows(meds,intakes,day){
   const recorded=new Map((intakes||[]).filter(x=>x.intake_date===day).map(x=>[x.medication_schedule_id,x.status]));
   return (meds||[]).map(m=>`<div class="item"><b>${esc(m.name)} ${esc(m.dose||'')}</b><div class="small muted">${esc(m.route||'')} · ${m.active?'Attiva':'Conclusa'}</div><div class="small">${(m.medication_schedules||[]).map(sc=>`${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(intakeState(recorded.get(sc.id)))}`).join('<br>')||'Nessun orario'}</div></div>`).join('')||'<p class="muted">Nessuna terapia.</p>';
 }
+function medicationAttention(meds,intakes,now=new Date()){
+  const today=now.toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
+  const yesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+  const [hour,minute]=now.toLocaleTimeString('en-GB',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',hour12:false}).split(':').map(Number);
+  const currentMinute=hour*60+minute;
+  const recorded=new Map((intakes||[]).map(x=>[`${x.intake_date}:${x.medication_schedule_id}`,x.status]));
+  const alerts=[];
+  for(const m of meds||[]){
+    if(!m.active)continue;
+    for(const day of [yesterday,today]){
+      if((m.starts_on&&m.starts_on>day)||(m.ends_on&&m.ends_on<day))continue;
+      const weekday=new Date(day+'T12:00:00Z').getUTCDay();
+      for(const sc of m.medication_schedules||[]){
+        if(Array.isArray(sc.weekdays)&&!sc.weekdays.includes(weekday))continue;
+        const status=recorded.get(`${day}:${sc.id}`);
+        if(status==='taken')continue;
+        const [h,min]=String(sc.time_of_day||'').split(':').map(Number);
+        if(!Number.isFinite(h)||!Number.isFinite(min))continue;
+        const elapsed=currentMinute+(day===yesterday?1440:0)-(h*60+min);
+        if(status==='skipped'||elapsed>=120)alerts.push({day,time:sc.time_of_day.slice(0,5),name:m.name,status:status==='skipped'?'skipped':'unconfirmed'});
+      }
+    }
+  }
+  return alerts;
+}
+const intakeAlerts=new Map();
+const intakeAlertLabel=alerts=>{
+  const skipped=alerts.filter(x=>x.status==='skipped').length;
+  const unconfirmed=alerts.length-skipped;
+  return [skipped&&`${skipped} non assunt${skipped===1?'o':'i'}`,unconfirmed&&`${unconfirmed} senza conferma`].filter(Boolean).join(' · ');
+};
 function out(el,t,ok=false){el.innerHTML='<div class="'+(ok?'ok':'err')+'">'+esc(t)+'</div>'}
 function showAuthPane(register=false){
   $('loginPane').classList.toggle('hidden',register); $('registerPane').classList.toggle('hidden',!register);
@@ -122,6 +153,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.classList.contains('hidden'))return;
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); $(b.dataset.view).classList.remove('hidden');
+  if(b.dataset.view==='overview'||b.dataset.view==='patients') await loadOverview();
   if(b.dataset.view==='appointments') await loadAppointments();
   if(b.dataset.view==='messages') await loadMessages();
   if(b.dataset.view==='delivery')loadDelivery();
@@ -129,6 +161,10 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='marcoDoctor')loadMarcoDoctor();
   if(b.dataset.view==='testDoctor')loadTestDoctor();
 });
+setInterval(()=>{
+  if(document.hidden||$('portal').classList.contains('hidden'))return;
+  if(document.querySelector('.nav button.on')?.dataset.view==='overview')loadOverview();
+},60000);
 
 function setWorkspace(mode){
   if(me?.role!=='Administrator')return;
@@ -373,7 +409,7 @@ async function loadTestDoctor(){
     ]);
     const err=[checkins,meds,followups,intakes,conversation].find(x=>x.error)?.error;if(err)return out(detail,err.message);
     const taken=(intakes.data||[]).filter(x=>x.status==='taken'&&x.intake_date===romeDay()).length;
-    detail.innerHTML=`<div class="card"><h3>${esc(names.get(id)||'Paziente')} · percorso in sola lettura</h3><p>Assunzioni confermate oggi: <strong>${taken}</strong>. Registrazioni negli ultimi 30 giorni: ${(intakes.data||[]).length}.</p><h4>Check-in</h4>${(checkins.data||[]).map(x=>`<div class="item">${healthPill(x.status)} ${esc(x.checkin_date)}</div>`).join('')||'Nessun check-in.'}<h4>Terapie</h4>${(meds.data||[]).map(x=>`<div class="item"><b>${esc(x.name)} ${esc(x.dose||'')}</b> · ${x.active?'Attiva':'Conclusa'}<div class="muted small">${(x.medication_schedules||[]).map(sc=>`${esc(sc.time_of_day?.slice(0,5))} · ${esc(intakeState((intakes.data||[]).find(i=>i.intake_date===romeDay()&&i.medication_schedule_id===sc.id)?.status))}`).join('<br>')}</div></div>`).join('')||'Nessuna terapia.'}<h4>Assunzioni registrate</h4><div id="testIntakeHistory" class="list">${intakeDays(intakes.data).map(day=>`<div class="item"><b>${esc(day)}</b>${(intakes.data||[]).filter(i=>i.intake_date===day).map(i=>`<div class="small">${esc((meds.data||[]).flatMap(m=>(m.medication_schedules||[]).map(sc=>({m,sc}))).find(row=>row.sc.id===i.medication_schedule_id)?.m.name||'Terapia non più nel piano')} · ${esc(intakeState(i.status))}</div>`).join('')}</div>`).join('')||'Nessuna conferma negli ultimi 30 giorni.'}</div><h4>Controlli</h4>${(followups.data||[]).map(x=>`<div class="item">${esc(x.milestone_label)} · ${fmt(x.due_date)} · ${x.completed?'Completato':'Da effettuare'}</div>`).join('')||'Nessun controllo.'}</div><div class="card"><h3>Messaggi di prova</h3><p class="notice">Conversazione con il paziente in modalità Test Medico. Non usarla per prescrizioni o urgenze.</p><div class="list">${(conversation.data||[]).reverse().map(m=>`<div class="item"><b>${m.sender_id===me.id?'Tu':'Paziente'}</b> · ${fmt(m.sent_at)}<div>${esc(m.body)}</div></div>`).join('')||'<p class="muted">Nessun messaggio.</p>'}</div><label class="field"><span>Rispondi</span><textarea id="testChatBody" maxlength="4000" placeholder="Scrivi al paziente"></textarea></label><button id="testChatSend" class="btn">Invia messaggio</button><div id="testChatResult" aria-live="polite"></div></div>`;
+    detail.innerHTML=`<div class="card"><h3>${esc(names.get(id)||'Paziente')} · percorso in sola lettura</h3><p>Assunzioni confermate oggi: <strong>${taken}</strong>. Registrazioni negli ultimi 30 giorni: ${(intakes.data||[]).length}.</p>${medicationAttention(meds.data,intakes.data).length?`<p class="notice" style="background:#fff5df;color:#775211">Terapie da verificare: ${esc(intakeAlertLabel(medicationAttention(meds.data,intakes.data)))}. L’assenza di conferma non dimostra la mancata assunzione.</p>`:''}<h4>Check-in</h4>${(checkins.data||[]).map(x=>`<div class="item">${healthPill(x.status)} ${esc(x.checkin_date)}</div>`).join('')||'Nessun check-in.'}<h4>Terapie</h4>${(meds.data||[]).map(x=>`<div class="item"><b>${esc(x.name)} ${esc(x.dose||'')}</b> · ${x.active?'Attiva':'Conclusa'}<div class="muted small">${(x.medication_schedules||[]).map(sc=>`${esc(sc.time_of_day?.slice(0,5))} · ${esc(intakeState((intakes.data||[]).find(i=>i.intake_date===romeDay()&&i.medication_schedule_id===sc.id)?.status))}`).join('<br>')}</div></div>`).join('')||'Nessuna terapia.'}<h4>Assunzioni registrate</h4><div id="testIntakeHistory" class="list">${intakeDays(intakes.data).map(day=>`<div class="item"><b>${esc(day)}</b>${(intakes.data||[]).filter(i=>i.intake_date===day).map(i=>`<div class="small">${esc((meds.data||[]).flatMap(m=>(m.medication_schedules||[]).map(sc=>({m,sc}))).find(row=>row.sc.id===i.medication_schedule_id)?.m.name||'Terapia non più nel piano')} · ${esc(intakeState(i.status))}</div>`).join('')}</div>`).join('')||'Nessuna conferma negli ultimi 30 giorni.'}</div><h4>Controlli</h4>${(followups.data||[]).map(x=>`<div class="item">${esc(x.milestone_label)} · ${fmt(x.due_date)} · ${x.completed?'Completato':'Da effettuare'}</div>`).join('')||'Nessun controllo.'}</div><div class="card"><h3>Messaggi di prova</h3><p class="notice">Conversazione con il paziente in modalità Test Medico. Non usarla per prescrizioni o urgenze.</p><div class="list">${(conversation.data||[]).reverse().map(m=>`<div class="item"><b>${m.sender_id===me.id?'Tu':'Paziente'}</b> · ${fmt(m.sent_at)}<div>${esc(m.body)}</div></div>`).join('')||'<p class="muted">Nessun messaggio.</p>'}</div><label class="field"><span>Rispondi</span><textarea id="testChatBody" maxlength="4000" placeholder="Scrivi al paziente"></textarea></label><button id="testChatSend" class="btn">Invia messaggio</button><div id="testChatResult" aria-live="polite"></div></div>`;
     $('testChatSend').onclick=async()=>{
       const body=$('testChatBody').value.trim(),button=$('testChatSend'),result=$('testChatResult');
       if(!body)return out(result,'Scrivi un messaggio.');
@@ -406,7 +442,7 @@ async function loadPatients(){
 function renderPatients(){
   const q=($('patientSearch')?.value||'').toLowerCase();
   $('patientList').innerHTML=patients.filter(x=>(x.profile?.full_name||'').toLowerCase().includes(q)).map(x=>
-    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div></div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
+    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(intakeAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Terapie · '+esc(intakeAlertLabel(intakeAlerts.get(x.patient_id)))+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
   ).join('')||'<p class="notice">Nessun account paziente è ancora collegato a questa vista. Il profilo personale dell’amministratore non è un account paziente. Per le conversazioni di prova apri «Test Medico» dopo la scelta del paziente nell’app.</p>';
   document.querySelectorAll('.patient[data-id]').forEach(x=>x.onclick=()=>openPatient(x.dataset.id));
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
@@ -428,19 +464,30 @@ $('patientSearch').oninput=renderPatients;
 
 async function loadOverview(){
   $('kPatients').textContent=patients.length;
-  $('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';
-  const today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
-  const ids=patients.map(x=>x.patient_id); if(!ids.length){$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';return;}
-  const[{data:c},{count:m}]=await Promise.all([
+  $('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';
+  const today=romeDay(),yesterday=romeDayAgo(1);
+  const ids=patients.map(x=>x.patient_id);intakeAlerts.clear();
+  if(!ids.length){$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
+  const[checkins,messages,meds,intakes]=await Promise.all([
     sb.from('patient_daily_checkins').select('*').in('patient_id',ids).eq('checkin_date',today).order('submitted_at',{ascending:false}),
-    sb.from('chat_messages').select('*',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false)
+    sb.from('chat_messages').select('*',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false),
+    sb.from('medications').select('patient_id,name,active,starts_on,ends_on,medication_schedules(id,time_of_day,weekdays)').in('patient_id',ids).eq('active',true),
+    sb.from('medication_intakes').select('patient_id,medication_schedule_id,intake_date,status').in('patient_id',ids).gte('intake_date',yesterday).lte('intake_date',today)
   ]);
-  const latest=[]; for(const x of c||[]) if(!latest.some(y=>y.patient_id===x.patient_id)) latest.push(x);
+  const latest=[]; for(const x of checkins.data||[]) if(!latest.some(y=>y.patient_id===x.patient_id)) latest.push(x);
   $('kRed').textContent=latest.filter(x=>x.status==='red').length;
   $('kYellow').textContent=latest.filter(x=>x.status==='yellow').length;
-  $('kMsg').textContent=m||0;
+  $('kMsg').textContent=messages.count||0;
+  if(!meds.error&&!intakes.error){
+    for(const id of ids){const alerts=medicationAttention((meds.data||[]).filter(x=>x.patient_id===id),(intakes.data||[]).filter(x=>x.patient_id===id));if(alerts.length)intakeAlerts.set(id,alerts);}
+    $('kIntake').textContent=intakeAlerts.size;
+  }else $('kIntake').textContent='—';
+  renderPatients();
   const att=latest.filter(x=>x.status!=='green');
-  $('attentionList').innerHTML=att.map(x=>{const p=patients.find(y=>y.patient_id===x.patient_id)?.profile;return '<div class="patient '+(x.status==='red'?'attention':'warn')+'" data-id="'+x.patient_id+'"><div class="row">'+healthPill(x.status)+'<b>'+esc(p?.full_name||'Paziente')+'</b><span class="pill">'+esc(x.status==='red'?'Richiede attenzione':'Da verificare')+'</span></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+' · '+fmt(x.submitted_at)+'</div></div>'}).join('')||'<p class="muted">Nessuna segnalazione gialla o rossa oggi.</p>';
+  const checkinRows=att.map(x=>{const p=patients.find(y=>y.patient_id===x.patient_id)?.profile;return '<div class="patient '+(x.status==='red'?'attention':'warn')+'" data-id="'+x.patient_id+'"><div class="row">'+healthPill(x.status)+'<b>'+esc(p?.full_name||'Paziente')+'</b><span class="pill">'+esc(x.status==='red'?'Richiede attenzione':'Da verificare')+'</span></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+' · '+fmt(x.submitted_at)+'</div></div>'});
+  const intakeRows=intakeAlerts.size?[...intakeAlerts].map(([id,alerts])=>{const p=patients.find(y=>y.patient_id===id)?.profile;return `<div class="patient ${alerts.some(x=>x.status==='skipped')?'attention':'warn'}" data-id="${esc(id)}"><b>${esc(p?.full_name||'Paziente')}</b> · Terapie: ${esc(intakeAlertLabel(alerts))}<div class="small muted">${alerts.map(x=>`${esc(x.day===today?'Oggi':'Ieri')} ${esc(x.time)} · ${esc(x.name)}: ${x.status==='skipped'?'Non assunto':'Nessuna conferma registrata'}`).join('<br>')}</div></div>`;}):[];
+  const error=checkins.error||meds.error||intakes.error;
+  $('attentionList').innerHTML=(error?`<div class="err" role="alert">Alcuni avvisi non sono disponibili: ${esc(error.message)}</div>`:'')+checkinRows.concat(intakeRows).join('')||'<p class="muted">Nessun avviso registrato oggi.</p>';
   document.querySelectorAll('#attentionList [data-id]').forEach(x=>x.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(x.dataset.id)});
 }
 
@@ -463,6 +510,7 @@ async function openPatient(id){
   const latest=daily.data?.[0];
   $('patientDetail').innerHTML=`<div class="card">
     <div class="row between"><div><h2>${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
+    <div id="patientIntakeAlert" role="status"></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="reports">Referti</button><button data-tab="settings">Protocollo</button></div>
     <div id="summary" class="tabp">${readError('summary')}<h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
     <div id="therapy" class="tabp hidden">${readError('therapy')}<div class="two"><div><h3>Nuova terapia</h3><div class="field" style="position:relative"><label>Farmaco</label><input id="medName" autocomplete="off" placeholder="Cerca per nome, principio attivo o AIC..."><div id="medCatalogResults" class="hidden" style="position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #dfe9ee;border-radius:12px;box-shadow:0 12px 30px rgba(15,52,66,.14);max-height:260px;overflow:auto"></div><div class="small muted" style="margin-top:6px">Ricerca sui cataloghi AIFA classe A e H · <a href="/nomenclatori.html" target="_blank" rel="noopener noreferrer">consulta e scarica i file</a>. Seleziona il medicinale e indica dose e modalità.</div></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><p class="muted small">Gli orari registrati attivano i promemoria locali nell’app e il riepilogo serale.</p><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div id="therapyCurrent" class="table-like">${therapyRows(meds.data,intakes.data,romeDay())}</div></div><div class="card section"><div class="row between"><h3>Assunzioni dichiarate dal paziente</h3><button id="refreshIntakes" type="button" class="btn secondary">Aggiorna</button></div><div class="field"><label for="intakeDate">Giorno</label><input id="intakeDate" type="date" min="${romeDayAgo(30)}" max="${romeDay()}" value="${romeDay()}"></div><p class="small muted">Per vedere le conferme precedenti, seleziona la data. Una conferma è una dichiarazione del paziente, non una verifica clinica dell'assunzione.</p><div id="intakeList" class="table-like">${intakeRows(meds.data,intakes.data,romeDay())}</div><div id="intakeHistory" class="row">${intakeDays(intakes.data).map(day=>`<button type="button" class="btn secondary intake-day" data-day="${esc(day)}">${esc(day)}</button>`).join('')||'<span class="muted">Nessuna conferma negli ultimi 30 giorni.</span>'}</div><div id="intakeMessage" role="status"></div></div></div></div>
@@ -476,11 +524,14 @@ async function openPatient(id){
   let patientIntakes=intakes.data||[];
   const paintIntakes=()=>{
     const day=$('intakeDate')?.value||romeDay();
+    const alerts=medicationAttention(meds.data,patientIntakes);
+    $('patientIntakeAlert').innerHTML=alerts.length?`<div class="notice" style="background:#fff5df;color:#775211;margin:12px 0"><b>Terapie da verificare · ${esc(intakeAlertLabel(alerts))}</b><div class="small">Assunzioni previste oggi o ieri. Apri Terapie per controllare gli orari; l'assenza di conferma non dimostra che il farmaco non sia stato assunto.</div></div>`:'';
     $('intakeList').innerHTML=intakeRows(meds.data,patientIntakes,day);
     $('therapyCurrent').innerHTML=therapyRows(meds.data,patientIntakes,romeDay());
     $('intakeHistory').innerHTML=intakeDays(patientIntakes).map(d=>`<button type="button" class="btn secondary intake-day" data-day="${esc(d)}">${esc(d)}</button>`).join('')||'<span class="muted">Nessuna conferma negli ultimi 30 giorni.</span>';
     $('intakeHistory').querySelectorAll('.intake-day').forEach(button=>button.onclick=()=>{$('intakeDate').value=button.dataset.day;paintIntakes();});
   };
+  paintIntakes();
   $('intakeDate').onchange=paintIntakes;
   $('refreshIntakes').onclick=async()=>{
     const button=$('refreshIntakes');button.disabled=true;
