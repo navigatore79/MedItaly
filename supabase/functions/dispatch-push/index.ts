@@ -97,12 +97,14 @@ Deno.serve(async (req) => {
 
     const { data: notification, error: notificationError } = await admin
       .from("notifications")
-      .select("id,patient_id,sender_id")
+      .select("id,patient_id,sender_id,notification_type,related_appointment_id")
       .eq("id", outbox.notification_id)
       .single();
     if (notificationError || !notification) throw new Error("NOTIFICATION_NOT_FOUND");
     if (notification.sender_id !== caller) throw new Error("NOT_ALLOWED");
     if (outbox.user_id !== notification.patient_id) throw new Error("PATIENT_MISMATCH");
+    const appointmentProposal = notification.notification_type === "Appointment Alert" &&
+      !!notification.related_appointment_id;
 
     const { data: callerProfile } = await admin
       .from("profiles").select("role,account_active").eq("id", caller).single();
@@ -187,21 +189,12 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             message: {
               token: t.token,
-              notification: {
-                title: "Meditaly",
-                body: "Hai un messaggio su Meditaly",
-              },
               data: {
-                type: "chat",
-                route: "messages",
+                type: appointmentProposal ? "appointment_proposal" : "chat",
+                route: appointmentProposal ? "followup" : "messages",
               },
               android: {
                 priority: "high",
-                notification: {
-                  channel_id: "meditaly_messages",
-                  visibility: "PUBLIC",
-                  default_sound: true,
-                },
               },
             },
           }),
