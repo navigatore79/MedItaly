@@ -65,37 +65,14 @@ function therapyRows(meds,intakes,day){
   const recorded=new Map((intakes||[]).filter(x=>x.intake_date===day).map(x=>[x.medication_schedule_id,x.status]));
   return (meds||[]).map(m=>`<div class="item"><b>${esc(m.name)} ${esc(m.dose||'')}</b><div class="small muted">${esc(m.route||'')} · ${m.active?'Attiva':'Conclusa'}</div><div class="small">${(m.medication_schedules||[]).map(sc=>`${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(intakeState(recorded.get(sc.id)))}`).join('<br>')||'Nessun orario'}</div></div>`).join('')||'<p class="muted">Nessuna terapia.</p>';
 }
-function medicationAttention(meds,intakes,now=new Date()){
-  const today=now.toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
-  const yesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
-  const [hour,minute]=now.toLocaleTimeString('en-GB',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',hour12:false}).split(':').map(Number);
-  const currentMinute=hour*60+minute;
-  const recorded=new Map((intakes||[]).map(x=>[`${x.intake_date}:${x.medication_schedule_id}`,x.status]));
-  const alerts=[];
-  for(const m of meds||[]){
-    if(!m.active)continue;
-    for(const day of [yesterday,today]){
-      if((m.starts_on&&m.starts_on>day)||(m.ends_on&&m.ends_on<day))continue;
-      const weekday=new Date(day+'T12:00:00Z').getUTCDay();
-      for(const sc of m.medication_schedules||[]){
-        if(Array.isArray(sc.weekdays)&&!sc.weekdays.includes(weekday))continue;
-        const status=recorded.get(`${day}:${sc.id}`);
-        if(status==='taken')continue;
-        const [h,min]=String(sc.time_of_day||'').split(':').map(Number);
-        if(!Number.isFinite(h)||!Number.isFinite(min))continue;
-        const elapsed=currentMinute+(day===yesterday?1440:0)-(h*60+min);
-        if(status==='skipped'||elapsed>=120)alerts.push({day,time:sc.time_of_day.slice(0,5),name:m.name,status:status==='skipped'?'skipped':'unconfirmed'});
-      }
-    }
-  }
-  return alerts;
+function medicationAttention(meds,intakes){
+  const skipped=(intakes||[]).filter(x=>x.status==='skipped');
+  return skipped.length>=2?skipped.map(x=>({day:x.intake_date,time:'',name:(meds||[]).find(m=>(m.medication_schedules||[]).some(sc=>sc.id===x.medication_schedule_id))?.name||'Farmaco',status:'skipped'})):[];
 }
 const intakeAlerts=new Map();
-const intakeAlertLabel=alerts=>{
-  const skipped=alerts.filter(x=>x.status==='skipped').length;
-  const unconfirmed=alerts.length-skipped;
-  return [skipped&&`${skipped} non assunt${skipped===1?'o':'i'}`,unconfirmed&&`${unconfirmed} senza conferma`].filter(Boolean).join(' · ');
-};
+const careAlerts=new Map();
+const intakeAlertLabel=alerts=>`${alerts.length} dosi dichiarate non assunte`;
+const signalLabel={red_checkin:'Non sto bene',repeated_skips:'Più dosi dichiarate non assunte',side_effect:'Possibile effetto indesiderato riferito'};
 function out(el,t,ok=false){el.innerHTML='<div class="'+(ok?'ok':'err')+'">'+esc(t)+'</div>'}
 function showAuthPane(register=false){
   $('loginPane').classList.toggle('hidden',register); $('registerPane').classList.toggle('hidden',!register);
@@ -442,7 +419,7 @@ async function loadPatients(){
 function renderPatients(){
   const q=($('patientSearch')?.value||'').toLowerCase();
   $('patientList').innerHTML=patients.filter(x=>(x.profile?.full_name||'').toLowerCase().includes(q)).map(x=>
-    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(intakeAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Terapie · '+esc(intakeAlertLabel(intakeAlerts.get(x.patient_id)))+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
+    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(careAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Da valutare · '+careAlerts.get(x.patient_id).length+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
   ).join('')||'<p class="notice">Nessun account paziente è ancora collegato a questa vista. Il profilo personale dell’amministratore non è un account paziente. Per le conversazioni di prova apri «Test Medico» dopo la scelta del paziente nell’app.</p>';
   document.querySelectorAll('.patient[data-id]').forEach(x=>x.onclick=()=>openPatient(x.dataset.id));
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
@@ -464,36 +441,27 @@ $('patientSearch').oninput=renderPatients;
 
 async function loadOverview(){
   $('kPatients').textContent=patients.length;
-  $('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';
-  const today=romeDay(),yesterday=romeDayAgo(1);
-  const ids=patients.map(x=>x.patient_id);intakeAlerts.clear();
-  if(!ids.length){$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
-  const[checkins,messages,meds,intakes]=await Promise.all([
-    sb.from('patient_daily_checkins').select('*').in('patient_id',ids).eq('checkin_date',today).order('submitted_at',{ascending:false}),
-    sb.from('chat_messages').select('*',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false),
-    sb.from('medications').select('patient_id,name,active,starts_on,ends_on,medication_schedules(id,time_of_day,weekdays)').in('patient_id',ids).eq('active',true),
-    sb.from('medication_intakes').select('patient_id,medication_schedule_id,intake_date,status').in('patient_id',ids).gte('intake_date',yesterday).lte('intake_date',today)
+  const ids=patients.map(x=>x.patient_id);careAlerts.clear();intakeAlerts.clear();
+  if(!ids.length){$('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
+  const [{data:signals,error:signalsError},{count:messagesCount,error:messagesError}]=await Promise.all([
+    sb.from('care_signals').select('id,patient_id,kind,signal_date,status,created_at').eq('status','open').in('patient_id',ids).order('created_at',{ascending:false}).limit(100),
+    sb.from('chat_messages').select('id',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false)
   ]);
-  const latest=[]; for(const x of checkins.data||[]) if(!latest.some(y=>y.patient_id===x.patient_id)) latest.push(x);
-  $('kRed').textContent=latest.filter(x=>x.status==='red').length;
-  $('kYellow').textContent=latest.filter(x=>x.status==='yellow').length;
-  $('kMsg').textContent=messages.count||0;
-  if(!meds.error&&!intakes.error){
-    for(const id of ids){const alerts=medicationAttention((meds.data||[]).filter(x=>x.patient_id===id),(intakes.data||[]).filter(x=>x.patient_id===id));if(alerts.length)intakeAlerts.set(id,alerts);}
-    $('kIntake').textContent=intakeAlerts.size;
-  }else $('kIntake').textContent='—';
+  const mine=(signals||[]).filter(x=>ids.includes(x.patient_id));
+  for(const x of mine){const list=careAlerts.get(x.patient_id)||[];list.push(x);careAlerts.set(x.patient_id,list);}
+  $('kRed').textContent=mine.filter(x=>x.kind==='red_checkin').length;
+  $('kYellow').textContent=mine.filter(x=>x.kind==='side_effect').length;
+  $('kIntake').textContent=mine.filter(x=>x.kind==='repeated_skips').length;
+  $('kMsg').textContent=messagesCount||0;
   renderPatients();
-  const att=latest.filter(x=>x.status!=='green');
-  const checkinRows=att.map(x=>{const p=patients.find(y=>y.patient_id===x.patient_id)?.profile;return '<div class="patient '+(x.status==='red'?'attention':'warn')+'" data-id="'+x.patient_id+'"><div class="row">'+healthPill(x.status)+'<b>'+esc(p?.full_name||'Paziente')+'</b><span class="pill">'+esc(x.status==='red'?'Richiede attenzione':'Da verificare')+'</span></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+' · '+fmt(x.submitted_at)+'</div></div>'});
-  const intakeRows=intakeAlerts.size?[...intakeAlerts].map(([id,alerts])=>{const p=patients.find(y=>y.patient_id===id)?.profile;return `<div class="patient ${alerts.some(x=>x.status==='skipped')?'attention':'warn'}" data-id="${esc(id)}"><b>${esc(p?.full_name||'Paziente')}</b> · Terapie: ${esc(intakeAlertLabel(alerts))}<div class="small muted">${alerts.map(x=>`${esc(x.day===today?'Oggi':'Ieri')} ${esc(x.time)} · ${esc(x.name)}: ${x.status==='skipped'?'Non assunto':'Nessuna conferma registrata'}`).join('<br>')}</div></div>`;}):[];
-  const error=checkins.error||meds.error||intakes.error;
-  $('attentionList').innerHTML=(error?`<div class="err" role="alert">Alcuni avvisi non sono disponibili: ${esc(error.message)}</div>`:'')+checkinRows.concat(intakeRows).join('')||'<p class="muted">Nessun avviso registrato oggi.</p>';
+  $('attentionList').innerHTML=(signalsError||messagesError?`<div class="err" role="alert">Avvisi non disponibili: ${esc((signalsError||messagesError).message)}</div>`:'')+(mine.map(x=>`<div class="patient attention" data-id="${esc(x.patient_id)}"><div class="row between"><div><b>${esc(patients.find(p=>p.patient_id===x.patient_id)?.profile?.full_name||'Paziente')}</b><div class="small muted">${esc(signalLabel[x.kind]||'Da valutare')} · ${esc(x.signal_date)} · ${fmt(x.created_at)}</div></div><button class="btn secondary review-signal" data-signal="${esc(x.id)}" type="button">Segna visto</button></div></div>`).join('')||'<p class="muted">Nessuna situazione segnalata da valutare.</p>');
   document.querySelectorAll('#attentionList [data-id]').forEach(x=>x.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(x.dataset.id)});
+  document.querySelectorAll('.review-signal').forEach(button=>button.onclick=async e=>{e.stopPropagation();button.disabled=true;const {data,error}=await sb.rpc('review_care_signal',{p_signal_id:button.dataset.signal});if(error||!data){alert('Impossibile registrare la presa visione: '+(error?.message||'Accesso non autorizzato'));button.disabled=false;return;}loadOverview();});
 }
 
 async function openPatient(id){
   selected=id; const p=patients.find(x=>x.patient_id===id)?.profile;
-  const[daily,meds,fu,msgs,setts,protos,imports,intakes,reports,procedure]=await Promise.all([
+  const[daily,meds,fu,msgs,setts,protos,imports,intakes,reports,procedure,conditions]=await Promise.all([
     sb.from('patient_daily_checkins').select('*').eq('patient_id',id).order('checkin_date',{ascending:false}).limit(14),
     sb.from('medications').select('*,medication_schedules(*)').eq('patient_id',id).order('created_at',{ascending:false}),
     sb.from('followup_milestones').select('*').eq('patient_id',id).order('due_date'),
@@ -503,7 +471,8 @@ async function openPatient(id){
     sb.from('patient_care_imports').select('*').eq('patient_id',id).order('created_at',{ascending:false}),
     sb.from('medication_intakes').select('medication_schedule_id,intake_date,status').eq('patient_id',id).gte('intake_date',romeDayAgo(30)).lte('intake_date',romeDay()).order('intake_date',{ascending:false}).limit(1000),
     sb.from('medical_reports').select('id,title,report_type,report_date,uploaded_at,medical_report_files(storage_path,page_number,mime_type)').eq('patient_id',id).order('uploaded_at',{ascending:false}),
-    sb.from('patient_clinician_requests').select('performed_on,procedure_label').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).not('performed_on','is',null).order('created_at',{ascending:false}).limit(1).maybeSingle()
+    sb.from('patient_clinician_requests').select('performed_on,procedure_label').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).not('performed_on','is',null).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+    sb.from('patient_chronic_conditions').select('condition_codes,updated_at').eq('patient_id',id).maybeSingle()
   ]);
   const readErrors={summary:daily.error,therapy:meds.error||intakes.error,controls:fu.error,chat:msgs.error,patientimports:imports.error,reports:reports.error,settings:setts.error||protos.error};
   const readError=key=>readErrors[key]?`<div class="err" role="alert">Impossibile caricare la sezione: ${esc(readErrors[key].message)}</div>`:'';
@@ -512,7 +481,7 @@ async function openPatient(id){
     <div class="row between"><div><h2>${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
     <div id="patientIntakeAlert" role="status"></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="reports">Referti</button><button data-tab="settings">Protocollo</button></div>
-    <div id="summary" class="tabp">${readError('summary')}<h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
+    <div id="summary" class="tabp">${readError('summary')}<h3>Condizioni dichiarate dal paziente</h3>${conditions.error?`<div class="err">Informazioni non disponibili: ${esc(conditions.error.message)}</div>`:`<p class="muted">${esc((conditions.data?.condition_codes||[]).map(c=>({'diabetes_type_2':'Diabete di tipo 2',hypertension:'Ipertensione',copd:'BPCO',asthma:'Asma',heart_failure:'Scompenso cardiaco',ckd:'Malattia renale cronica'})[c]||c).join(' · ')||'Nessuna condizione dichiarata.')} · Informazione riferita dal paziente, da verificare.</p>`}<h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
     <div id="therapy" class="tabp hidden">${readError('therapy')}<div class="two"><div><h3>Nuova terapia</h3><div class="field" style="position:relative"><label>Farmaco</label><input id="medName" autocomplete="off" placeholder="Cerca per nome, principio attivo o AIC..."><div id="medCatalogResults" class="hidden" style="position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #dfe9ee;border-radius:12px;box-shadow:0 12px 30px rgba(15,52,66,.14);max-height:260px;overflow:auto"></div><div class="small muted" style="margin-top:6px">Ricerca sui cataloghi AIFA classe A e H · <a href="/nomenclatori.html" target="_blank" rel="noopener noreferrer">consulta e scarica i file</a>. Seleziona il medicinale e indica dose e modalità.</div></div><div class="field"><label>Dose</label><input id="medDose"></div><div class="field"><label>Via</label><input id="medRoute" value="Orale"></div><div class="field"><label>Istruzioni</label><textarea id="medInstr" rows="2"></textarea></div><div class="two"><div class="field"><label>Inizio</label><input id="medStart" type="date"></div><div class="field"><label>Fine</label><input id="medEnd" type="date"></div></div><div class="field"><label>Orari giornalieri</label><input id="medTimes" placeholder="08:00,20:00"></div><button id="saveMed" class="btn">Salva terapia</button><p class="muted small">Gli orari registrati attivano i promemoria locali nell’app e il riepilogo serale.</p><div id="medMsg"></div></div><div><h3>Terapie attuali</h3><div id="therapyCurrent" class="table-like">${therapyRows(meds.data,intakes.data,romeDay())}</div></div><div class="card section"><div class="row between"><h3>Assunzioni dichiarate dal paziente</h3><button id="refreshIntakes" type="button" class="btn secondary">Aggiorna</button></div><div class="field"><label for="intakeDate">Giorno</label><input id="intakeDate" type="date" min="${romeDayAgo(30)}" max="${romeDay()}" value="${romeDay()}"></div><p class="small muted">Per vedere le conferme precedenti, seleziona la data. Una conferma è una dichiarazione del paziente, non una verifica clinica dell'assunzione.</p><div id="intakeList" class="table-like">${intakeRows(meds.data,intakes.data,romeDay())}</div><div id="intakeHistory" class="row">${intakeDays(intakes.data).map(day=>`<button type="button" class="btn secondary intake-day" data-day="${esc(day)}">${esc(day)}</button>`).join('')||'<span class="muted">Nessuna conferma negli ultimi 30 giorni.</span>'}</div><div id="intakeMessage" role="status"></div></div></div></div>
     <div id="controls" class="tabp hidden">${readError('controls')}<div class="two"><div><h3>Nuovo controllo</h3><div class="field"><label>Titolo</label><input id="fuLabel"></div><div class="field"><label>Tipo</label><input id="fuType" value="visita"></div><div class="field"><label>Data</label><input id="fuDate" type="date"></div><div class="field"><label>Promemoria giorni prima</label><input id="fuOffsets" value="${esc((setts.data?.followup_reminder_offsets||[7,1,0]).join(','))}"></div><div class="field"><label>Note</label><textarea id="fuNotes" rows="2"></textarea></div><button id="saveFu" class="btn">Programma controllo</button><div id="fuMsg"></div></div><div><h3>Calendario</h3><div class="table-like">${(fu.data||[]).map(x=>'<div class="item"><b>'+esc(x.milestone_label)+'</b><div class="small muted">'+esc(x.due_date)+' · '+esc(x.milestone_type)+' · '+(x.completed?'Completato':'Da fare')+'</div></div>').join('')||'<p class="muted">Nessun controllo.</p>'}</div></div></div></div>
     <div id="chat" class="tabp hidden">${readError('chat')}<div class="two"><div><h3>Conversazione</h3><div id="chatBox" class="msgbox">${(msgs.data||[]).filter(x=>(x.sender_id===me.id&&x.recipient_id===id)||(x.sender_id===id&&x.recipient_id===me.id)).map(x=>'<div class="msg '+(x.sender_id===me.id?'mine':'')+'">'+esc(x.body)+'<div class="small muted">'+fmt(x.sent_at)+'</div></div>').join('')||'<p class="muted">Nessun messaggio.</p>'}</div><div class="field"><textarea id="chatText" rows="2" placeholder="Scrivi un messaggio..."></textarea></div><button id="sendChat" class="btn">Invia messaggio</button><div id="chatMsg" role="status" aria-live="polite"></div></div><div><h3>Notifica immediata</h3><p class="muted small">Sul lock screen viene mostrata solo una comunicazione generica Meditaly.</p><div class="field"><label>Titolo interno</label><input id="noticeTitle" value="Il medico vuole contattarti"></div><div class="field"><label>Messaggio nell'app</label><textarea id="noticeBody" rows="3">Apri Meditaly per una nuova comunicazione del tuo medico.</textarea></div><button id="sendNotice" class="btn">Invia notifica</button><div id="noticeMsg"></div></div></div></div>
