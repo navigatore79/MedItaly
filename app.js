@@ -48,13 +48,13 @@ const healthLabel=s=>({green:'Bene',yellow:'Così così',red:'Non sto bene'})[s]
 const healthPill=s=>`<span class="pill health-pill ${['green','yellow','red'].includes(s)?s:'gray'}">${esc(healthLabel(s))}</span>`;
 const romeDay=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
 const romeDayAgo=n=>new Date(Date.parse(romeDay()+'T12:00:00Z')-n*86400000).toISOString().slice(0,10);
-const intakeState=s=>s==='taken'?'Assunto · confermato dal paziente':s==='skipped'?'Non assunto · indicato dal paziente':'Non confermato';
+const intakeState=s=>s==='taken'?'Assunto · confermato dal paziente':s==='skipped'?'Non assunto · indicato dal paziente':s==='unknown'?'Non ricordo · indicato dal paziente':'Non confermato';
 function intakeRows(meds,intakes,day){
-  const recorded=new Map((intakes||[]).filter(x=>x.intake_date===day).map(x=>[x.medication_schedule_id,x.status]));
+  const recorded=new Map((intakes||[]).filter(x=>x.intake_date===day).map(x=>[x.medication_schedule_id,x]));
   const weekday=new Date(day+'T12:00:00Z').getUTCDay();
   const scheduled=(meds||[]).filter(m=>(!m.starts_on||m.starts_on<=day)&&(!m.ends_on||m.ends_on>=day))
     .flatMap(m=>(m.medication_schedules||[]).filter(sc=>!Array.isArray(sc.weekdays)||sc.weekdays.includes(weekday)).map(sc=>({m,sc})));
-  const rows=scheduled.map(({m,sc})=>`<div class="item"><b>${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(m.name)} ${esc(m.dose||'')}</b><div class="small ${recorded.get(sc.id)==='taken'?'ok':'muted'}">${esc(intakeState(recorded.get(sc.id)))}</div></div>`);
+  const rows=scheduled.map(({m,sc})=>`<div class="item"><b>${esc(sc.time_of_day?.slice(0,5)||'—')} · ${esc(m.name)} ${esc(m.dose||'')}</b><div class="small ${recorded.get(sc.id)?.status==='taken'?'ok':'muted'}">${esc(intakeState(recorded.get(sc.id)?.status) + (recorded.get(sc.id)?.skip_reason==='side_effect'?' · Effetto indesiderato riferito':''))}</div></div>`);
   const known=new Set(scheduled.map(({sc})=>sc.id));
   for(const x of (intakes||[]).filter(x=>x.intake_date===day&&!known.has(x.medication_schedule_id)))
     rows.push(`<div class="item">Orario non più nel piano · ${esc(intakeState(x.status))}</div>`);
@@ -469,7 +469,7 @@ async function openPatient(id){
     sb.from('patient_monitoring_settings').select('*').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).maybeSingle(),
     sb.from('monitoring_protocols').select('*').eq('clinician_id',(await sb.auth.getUser()).data.user.id).eq('is_active',true),
     sb.from('patient_care_imports').select('*').eq('patient_id',id).order('created_at',{ascending:false}),
-    sb.from('medication_intakes').select('medication_schedule_id,intake_date,status').eq('patient_id',id).gte('intake_date',romeDayAgo(30)).lte('intake_date',romeDay()).order('intake_date',{ascending:false}).limit(1000),
+    sb.from('medication_intakes').select('medication_schedule_id,intake_date,status,skip_reason').eq('patient_id',id).gte('intake_date',romeDayAgo(30)).lte('intake_date',romeDay()).order('intake_date',{ascending:false}).limit(1000),
     sb.from('medical_reports').select('id,title,report_type,report_date,uploaded_at,medical_report_files(storage_path,page_number,mime_type)').eq('patient_id',id).order('uploaded_at',{ascending:false}),
     sb.from('patient_clinician_requests').select('performed_on,procedure_label').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).not('performed_on','is',null).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     sb.from('patient_chronic_conditions').select('condition_codes,updated_at').eq('patient_id',id).maybeSingle()
@@ -504,7 +504,7 @@ async function openPatient(id){
   $('intakeDate').onchange=paintIntakes;
   $('refreshIntakes').onclick=async()=>{
     const button=$('refreshIntakes');button.disabled=true;
-    const {data,error}=await sb.from('medication_intakes').select('medication_schedule_id,intake_date,status').eq('patient_id',id).gte('intake_date',romeDayAgo(30)).lte('intake_date',romeDay()).order('intake_date',{ascending:false}).limit(1000);
+    const {data,error}=await sb.from('medication_intakes').select('medication_schedule_id,intake_date,status,skip_reason').eq('patient_id',id).gte('intake_date',romeDayAgo(30)).lte('intake_date',romeDay()).order('intake_date',{ascending:false}).limit(1000);
     button.disabled=false;
     if(error)return out($('intakeMessage'),'Impossibile aggiornare le assunzioni: '+error.message);
     patientIntakes=data||[];paintIntakes();out($('intakeMessage'),'Assunzioni aggiornate.',true);
