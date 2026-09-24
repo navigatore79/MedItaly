@@ -19,7 +19,7 @@
     .grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:flex;flex-direction:column;gap:8px;position:sticky;top:20px;height:max-content}
     .nav button{border:0;background:#f1f6fb;padding:12px;border-radius:12px;text-align:left;font-weight:800;color:#365d82}.nav button.on{background:#0b68d1;color:#fff}
     .hero{background:linear-gradient(135deg,#0b68d1,#3194da);color:#fff;border-radius:20px;padding:22px;margin-bottom:16px}.hero h1{margin:0 0 6px}.hero p{margin:0;opacity:.9}
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{background:#fff;border:1px solid #dfe9ee;border-radius:16px;padding:17px}.kpi b{font-size:28px;display:block;margin-top:6px}
+    .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.kpi{background:#fff;border:1px solid #dfe9ee;border-radius:16px;padding:17px}.kpi b{font-size:28px;display:block;margin-top:6px}.intake-alert-pill{display:inline-block;margin-top:7px;border:1px solid #eac88c;background:#fff5df;color:#775211;font-weight:800}
     .section{margin-top:16px}.row{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}.right{margin-left:auto}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
     .list,.table-like{display:flex;flex-direction:column;gap:8px}.patient,.item{border:1px solid #e0e9ee;border-radius:14px;padding:13px;background:#fff}.patient{cursor:pointer}.patient:hover{background:#f7fbff}
     .pill{font-size:12px;border-radius:999px;padding:5px 9px;background:#eef5f8}.dot{width:12px;height:12px;border-radius:50%;display:inline-block}.green{background:#25a65a}.yellow{background:#f5b82e}.red{background:#dc3d3d}.gray{background:#b7c1c8}
@@ -103,6 +103,7 @@
             <div class="kpi">Pazienti<b id="kPatients">0</b></div>
             <div class="kpi">🔴 Oggi<b id="kRed">0</b></div>
             <div class="kpi">🟡 Oggi<b id="kYellow">0</b></div>
+            <div class="kpi">Terapie da verificare<b id="kIntake">0</b></div>
             <div class="kpi">Messaggi non letti<b id="kMsg">0</b></div>
           </div>
           <div class="card section"><h3>Richiedono attenzione</h3><div id="attentionList" class="list"></div></div>
@@ -136,7 +137,7 @@
                   <div id="protoMedList" class="list" style="margin-top:10px"></div>
                 </div>
                 <div class="card" style="margin-top:14px;background:#fbfdfe">
-                  <div class="row between"><div><b>Controlli previsti</b><div class="small muted">Le date vengono calcolate dalla data della prestazione indicata nel riepilogo clinico.</div></div><button id="addProtoFollow" type="button" class="btn secondary">＋ Controllo</button></div>
+                  <div class="row between"><div><b>Controlli previsti</b><div class="small muted">Le date vengono calcolate rispetto al giorno di applicazione del protocollo.</div></div><button id="addProtoFollow" type="button" class="btn secondary">＋ Controllo</button></div>
                   <div id="protoFollowList" class="list" style="margin-top:10px"></div>
                 </div>
                 <button id="saveProto" class="btn" style="margin-top:12px">Salva protocollo</button><div id="protoMsg"></div>
