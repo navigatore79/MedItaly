@@ -55,7 +55,7 @@
 <div class="wrap">
   <div class="top">
     <div class="brand-lockup"><div class="brand-mark"><img src="brand-heart.svg" alt="" style="width:46px;height:46px;border-radius:15px;animation:brandBreath 5s ease-in-out infinite"></div><div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">La tua salute, ogni giorno · Dashboard medico-paziente</div></div></div>
-    <div id="workspaceSwitch" class="workspace-switch hidden"><label for="workspaceMode">Area di lavoro</label><select id="workspaceMode"><option value="admin">Amministratore</option><option value="doctor">Medico</option><option value="test">Test Medico</option></select><small id="workspaceHint"></small></div>
+    <div id="workspaceSwitch" class="workspace-switch hidden"><label for="workspaceMode">Area di lavoro</label><select id="workspaceMode"><option value="admin">Amministratore</option><option value="doctor">Pazienti del mio account</option><option value="test">Supporto Test Medico</option></select><small id="workspaceHint"></small></div>
     <div class="row"><button id="voiceToggle" type="button" class="btn secondary hidden" aria-controls="voicePanel" aria-expanded="false">Parla con Medi</button><button id="installClinicianApp" type="button" class="btn secondary hidden">Installa app</button><button id="logout" class="btn secondary hidden">Esci</button></div>
   </div>
 
@@ -98,7 +98,7 @@
         <button data-view="delivery">Notifiche inviate</button>
         <button id="adminNav" data-view="admin" class="hidden">Amministrazione</button>
         <button id="marcoDoctorNav" data-view="marcoDoctor" class="hidden">Dr. Marco Test</button>
-        <button id="testDoctorNav" data-view="testDoctor" class="hidden">Test Medico</button>
+        <button id="testDoctorNav" data-view="testDoctor" class="hidden">Supporto test</button>
         <button data-view="requests">Richieste pazienti</button>
         <button data-view="profile">Profilo pubblico</button>
       </aside>
@@ -194,7 +194,7 @@
 
         <section id="admin" class="view hidden"><header class="admin-page-head"><div><span class="eyebrow">GESTIONE MEDITALY</span><h1>Amministrazione</h1><p>Account, richieste e collegamenti tra pazienti e medici.</p></div><span class="admin-identity">Area riservata · Amministratore</span></header><div id="adminContent" class="admin-layout" aria-live="polite"></div></section>
         <section id="marcoDoctor" class="view hidden"><div class="card"><h2>Dr. Marco Test · collegamenti</h2><p class="notice">Vista amministrativa delle richieste e dei pazienti associati a questo account Clinician. Non dà accesso all'account di Marco né consente di scrivere messaggi a suo nome.</p><div id="marcoDoctorContent"></div></div></section>
-        <section id="testDoctor" class="view hidden"><div class="card"><h2>Test Medico · ambiente di prova</h2><p class="notice">Questa vista è collegata all'account amministratore con cui hai effettuato l'accesso. Mostra i pazienti che hanno scelto Test Medico; non equivale a un profilo clinico verificato e non consente prescrizioni.</p><div id="testDoctorContent"></div></div></section>
+        <section id="testDoctor" class="view hidden"><div class="card"><h2>Supporto Test Medico</h2><p class="notice">Questa vista usa l’account amministratore per leggere il percorso e rispondere ai pazienti che hanno scelto Test Medico. Per provare terapie, controlli, protocolli e comandi vocali, accedi con un account medico approvato come Ciro TEST: le funzioni cliniche e i pazienti assegnati sono disponibili lì.</p><button id="switchToClinicianLogin" type="button" class="btn secondary">Esci e accedi come medico test</button><div id="testDoctorContent"></div></div></section>
 
         <section id="requests" class="view hidden">
           <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>

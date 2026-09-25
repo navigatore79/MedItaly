@@ -149,7 +149,7 @@ function setWorkspace(mode){
   if(me?.role!=='Administrator')return;
   workspace=['admin','doctor','test'].includes(mode)?mode:'admin';
   $('workspaceMode').value=workspace;
-  const descriptions={admin:'Gestione account e assegnazioni.',doctor:`Vista clinica dell’account ${me.full_name||'attuale'}: ${patients.length} pazienti assegnati. Per i pazienti degli altri medici usa il rispettivo accesso.`,test:'Conversazioni di prova dei pazienti che hanno scelto Test Medico.'};
+  const descriptions={admin:'Gestione account e assegnazioni.',doctor:`Account ${me.full_name||'attuale'}: ${patients.length} pazienti assegnati. Le funzioni cliniche complete richiedono l’accesso con un account medico.`,test:'Supporto amministrativo ai pazienti in modalità test. Per usare tutte le funzioni e Medi accedi come medico test.'};
   $('workspaceHint').textContent=descriptions[workspace];
   document.querySelectorAll('.nav button').forEach(button=>{
     const type=button.dataset.view;
@@ -159,6 +159,7 @@ function setWorkspace(mode){
   document.querySelector(`.nav button[data-view="${first}"]`)?.click();
 }
 $('workspaceMode').onchange=e=>setWorkspace(e.target.value);
+$('switchToClinicianLogin').onclick=async()=>{await sb.auth.signOut();location.reload();};
 
 async function boot(){
   const{data:{user}}=await sb.auth.getUser(); if(!user)return; await persistClinicianLegal();
