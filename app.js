@@ -845,7 +845,7 @@ const GISE_PROTOCOL_TEMPLATES=[
 function addProtoMedRow(v={}){
   const box=$('protoMedList'); if(!box)return;
   const el=document.createElement('div');el.className='item proto-med-row';
-  el.innerHTML='<div class="care-row-head">Farmaco previsto</div><div class="two">'<div class="field"><label>Farmaco</label><input class="pm-name" placeholder="Nome / AIFA" value="'+esc(v.name||'')+'"></div><div class="field"><label>Dose</label><input class="pm-dose" placeholder="Es. 100 mg" value="'+esc(v.dose||'')+'"></div></div>'+
+  el.innerHTML='<div class="care-row-head">Farmaco previsto</div><div class="two">'+'<div class="field"><label>Farmaco</label><input class="pm-name" placeholder="Nome / AIFA" value="'+esc(v.name||'')+'"></div><div class="field"><label>Dose</label><input class="pm-dose" placeholder="Es. 100 mg" value="'+esc(v.dose||'')+'"></div></div>'+
     '<div class="two"><div class="field"><label>Via</label><input class="pm-route" value="'+esc(v.route||'Orale')+'"></div><div class="field"><label>Orari</label><input class="pm-times" placeholder="08:00,20:00" value="'+esc((v.times||[]).join(','))+'"></div></div>'+
     '<div class="two"><div class="field"><label>Inizio dopo (giorni)</label><input class="pm-start" type="number" min="0" value="'+esc(v.starts_in_days??0)+'"></div><div class="field"><label>Durata (giorni, vuoto = continuativa)</label><input class="pm-duration" type="number" min="1" value="'+esc(v.duration_days??'')+'"></div></div>'+
     '<div class="field"><label>Istruzioni</label><input class="pm-instr" value="'+esc(v.instructions||'')+'"></div><button type="button" class="btn danger proto-remove">Rimuovi</button>';
@@ -854,7 +854,7 @@ function addProtoMedRow(v={}){
 function addProtoFollowRow(v={}){
   const box=$('protoFollowList'); if(!box)return;
   const el=document.createElement('div');el.className='item proto-follow-row';
-  el.innerHTML='<div class="care-row-head">Controllo previsto</div><div class="two">'<div class="field"><label>Controllo</label><input class="pf-label" placeholder="Es. Visita cardiologica" value="'+esc(v.label||'')+'"></div><div class="field"><label>Tipo</label><input class="pf-type" value="'+esc(v.type||'controllo')+'"></div></div>'+
+  el.innerHTML='<div class="care-row-head">Controllo previsto</div><div class="two">'+'<div class="field"><label>Controllo</label><input class="pf-label" placeholder="Es. Visita cardiologica" value="'+esc(v.label||'')+'"></div><div class="field"><label>Tipo</label><input class="pf-type" value="'+esc(v.type||'controllo')+'"></div></div>'+
     '<div class="two"><div class="field"><label>Dopo quanti giorni</label><input class="pf-days" type="number" min="0" value="'+esc(v.after_days??30)+'"></div><div class="field"><label>Promemoria giorni prima</label><input class="pf-rem" value="'+esc((v.reminder_offsets||[7,1,0]).join(','))+'"></div></div>'+
     '<div class="field"><label>Note</label><input class="pf-notes" value="'+esc(v.notes||'')+'"></div><button type="button" class="btn danger proto-remove">Rimuovi</button>';
   box.appendChild(el);el.querySelector('.proto-remove').onclick=()=>el.remove();
