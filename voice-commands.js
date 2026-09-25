@@ -26,6 +26,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     panel.dataset.state = state;
     const labels = {
       idle: ['Microfono spento', 'Come posso aiutarti?', 'Attiva il microfono quando vuoi parlare con Medi. Rimarrà in ascolto finché non lo fermi.'],
+      starting: ['Attivazione in corso', 'Consenti il microfono', 'Se il browser chiede il permesso, scegli Consenti per questo sito.'],
       listening: ['In ascolto', messageFlow?.stage === 'dictation' ? 'Detta il tuo messaggio' : messageFlow?.stage === 'review' ? 'Pronuncia «invia»' : 'Dimmi cosa vuoi fare', messageFlow?.stage === 'review' ? 'Puoi anche cambiare il testo qui sotto o dire «cambia messaggio».' : 'Medi tornerà in ascolto dopo ogni risposta.'],
       working: ['Sto elaborando', 'Un momento…', 'Sto verificando il comando e il paziente selezionato.'],
       review: ['Conferma necessaria', 'Controlla prima di inviare', 'Verifica destinatario e testo. Poi di’ «invia» o premi il pulsante.'],
@@ -37,15 +38,15 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     active = false; clearTimeout(timer);
     if (recognition) { try { recognition.abort(); } catch {} recognition = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
-    listen.textContent = 'Attiva microfono'; renderState(messageFlow?.stage === 'review' ? 'review' : 'idle');
+    listen.textContent = 'Attiva microfono'; listen.setAttribute('aria-pressed', 'false'); renderState(messageFlow?.stage === 'review' ? 'review' : 'idle');
   }
   function scheduleListen() {
     if (!active || busy || document.hidden || panel.classList.contains('hidden')) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (!active || busy) return;
-      try { recognition.start(); listen.textContent = 'Ferma ascolto'; renderState('listening'); }
-      catch { timer = setTimeout(scheduleListen, 600); }
+      try { recognition.start(); renderState('starting'); }
+      catch (error) { stop(); status('Impossibile riattivare il microfono: ' + (error.message || 'controlla il permesso del browser.')); }
     }, 350);
   }
   function reply(message, aloud = false) {
@@ -208,15 +209,25 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   $('voiceText').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); processCommand(false); } };
   listen.onclick = () => {
     if (active) return stop();
-    if (!Recognition) return status('Riconoscimento vocale non disponibile in questo browser. Usa il campo testuale.');
-    if (!$('voicePrivacy').checked) return status('Leggi e seleziona prima la nota sul riconoscimento vocale del browser.');
+    if (!Recognition) return status('Questo browser non offre il riconoscimento vocale. Prova Chrome o Safari aggiornato, oppure usa il comando scritto.');
     recognition = new Recognition(); recognition.lang = 'it-IT'; recognition.continuous = false; recognition.interimResults = false;
     recognition.onresult = event => { $('voiceText').value = event.results[event.resultIndex][0].transcript; processCommand(true); };
-    recognition.onerror = event => { if (['not-allowed','service-not-allowed','audio-capture'].includes(event.error)) { stop(); status('Microfono non disponibile: controlla il permesso del browser.'); } };
+    recognition.onstart = () => { if (active) renderState('listening'); };
+    recognition.onerror = event => {
+      if (event.error === 'no-speech' || event.error === 'aborted') return;
+      const errors = {
+        'not-allowed': 'Permesso microfono negato. Abilitalo dalle impostazioni del sito nel browser e riprova.',
+        'service-not-allowed': 'Riconoscimento vocale bloccato dal browser. Controlla i permessi del sito.',
+        'audio-capture': 'Nessun microfono disponibile. Controlla il dispositivo e i permessi del browser.',
+        network: 'Servizio vocale non raggiungibile. Riprova con una connessione attiva o usa il comando scritto.',
+        'language-not-supported': 'Riconoscimento in italiano non disponibile in questo browser.',
+      };
+      stop(); status(errors[event.error] || `Riconoscimento interrotto (${event.error}). Riprova o usa il comando scritto.`);
+    };
     recognition.onend = scheduleListen;
-    active = true; listen.textContent = 'Ferma ascolto';
-    try { recognition.start(); renderState('listening'); }
-    catch { scheduleListen(); }
+    active = true; listen.textContent = 'Ferma ascolto'; listen.setAttribute('aria-pressed', 'true'); renderState('starting');
+    try { recognition.start(); }
+    catch (error) { stop(); status('Impossibile avviare il microfono: ' + (error.message || 'controlla il permesso del browser.')); }
   };
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   $('logout').addEventListener('click', stop);
