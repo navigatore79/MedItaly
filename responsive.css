@@ -1,0 +1,82 @@
+/* Layout adattivo della dashboard clinica. Nessuna logica o dato clinico viene modificato. */
+:root{font-synthesis:none;-webkit-text-size-adjust:100%}
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+.grid main,.card,.patient-main,.admin-panel{min-width:0}
+button,input,select,textarea{touch-action:manipulation}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #1b80c1;outline-offset:2px}
+.patient,.item,.msg,.admin-entry-row{overflow-wrap:anywhere}
+.field textarea{resize:vertical}
+.msgbox{overscroll-behavior:contain}
+
+/* Desktop: navigazione più leggibile e contenuti centrati sugli schermi ampi. */
+@media(min-width:901px){
+  .wrap{max-width:1440px;padding:28px clamp(24px,3vw,52px)}
+  .grid{grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:start}
+  .nav{top:24px;gap:6px;padding:14px}
+  .nav button{min-height:46px;padding:12px 14px;line-height:1.25}
+  .top{gap:18px}
+  .hero{padding:26px 30px}
+  .kpi{min-width:0;overflow-wrap:anywhere}
+  .card{max-width:100%}
+  .tabs button,.btn{min-height:42px}
+}
+
+/* Tablet: meno colonne e barra di navigazione orizzontale. */
+@media(max-width:900px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .wrap{padding:18px}
+  .nav{top:auto;position:relative;flex-direction:row;overflow-x:auto;scrollbar-width:thin}
+  .nav button{flex:0 0 auto;min-height:44px;white-space:nowrap}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two,.three,.admin-columns{grid-template-columns:minmax(0,1fr)}
+}
+
+/* Smartphone: navigazione raggiungibile con il pollice e moduli a larghezza piena. */
+@media(max-width:700px){
+  .wrap{padding:12px 12px calc(102px + env(safe-area-inset-bottom))}
+  .top{gap:10px;align-items:flex-start}
+  .brand-lockup{gap:8px;min-width:0}
+  .brand{font-size:22px}
+  .brand-mark,.brand-mark img{width:40px!important;height:40px!important}
+  .brand-lockup .small{font-size:11px;line-height:1.25}
+  .top>.row{margin-left:auto}
+  .top>.row .btn{min-height:40px;padding:8px 10px;font-size:12px}
+  .workspace-switch{width:100%;margin:0}
+  .card{padding:15px;border-radius:17px}
+  .auth{margin:18px auto}
+  .clinica-login-hero{grid-template-columns:minmax(0,1fr) 64px;gap:8px;padding:14px}
+  .clinica-login-hero h1{font-size:22px}
+  .clinica-heart{width:62px;height:60px;font-size:35px}
+  .grid{display:block}
+  .grid main{min-width:0}
+  .nav{position:fixed;z-index:30;top:auto;bottom:0;left:0;right:0;display:flex;flex-direction:row;gap:5px;max-width:none;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d9e5f1;border-radius:0;box-shadow:0 -8px 22px #193b531c}
+  .nav::-webkit-scrollbar,.tabs::-webkit-scrollbar{display:none}
+  .nav button{flex:0 0 auto;min-width:78px;max-width:110px;min-height:44px;text-align:center;scroll-snap-align:start;font-size:12px;line-height:1.15;white-space:normal;padding:8px}
+  .hero{padding:19px;border-radius:17px}
+  .hero h1{font-size:23px;line-height:1.2}
+  .hero p{font-size:14px;line-height:1.45}
+  .kpis,.admin-metrics{gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi{padding:12px;min-width:0;font-size:12px;overflow-wrap:anywhere}
+  .kpi b{font-size:24px;margin-top:4px}
+  .row{flex-wrap:wrap}
+  .two,.three{grid-template-columns:minmax(0,1fr)}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding-bottom:3px}
+  .tabs button{white-space:nowrap;flex:0 0 auto;min-height:44px;scroll-snap-align:start}
+  .field input,.field select,.field textarea{min-height:44px;font-size:16px}
+  .btn{min-height:44px}
+  .msgbox{height:min(45vh,360px)}
+  .msg{max-width:88%}
+  #patientSearch{width:100%;max-width:none!important}
+  .patient-quick{margin-left:0}
+  .patient-quick button{min-height:40px;font-size:12px}
+  #patientDetail{scroll-margin-top:12px}
+  .footer{padding-bottom:4px}
+}
+@media(max-width:360px){
+  .wrap{padding-left:10px;padding-right:10px}
+  .brand{font-size:20px}
+  .kpi{padding:10px}
+  .kpi b{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
