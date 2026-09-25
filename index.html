@@ -56,7 +56,7 @@
   <div class="top">
     <div class="brand-lockup"><div class="brand-mark"><img src="brand-heart.svg" alt="" style="width:46px;height:46px;border-radius:15px;animation:brandBreath 5s ease-in-out infinite"></div><div><div class="brand">Meditaly <span>Clinica</span></div><div class="muted small">La tua salute, ogni giorno · Dashboard medico-paziente</div></div></div>
     <div id="workspaceSwitch" class="workspace-switch hidden"><label for="workspaceMode">Area di lavoro</label><select id="workspaceMode"><option value="admin">Amministratore</option><option value="doctor">Medico</option><option value="test">Test Medico</option></select><small id="workspaceHint"></small></div>
-    <div class="row"><button id="installClinicianApp" type="button" class="btn secondary hidden">Installa app</button><button id="logout" class="btn secondary hidden">Esci</button></div>
+    <div class="row"><button id="voiceToggle" type="button" class="btn secondary hidden" aria-controls="voicePanel" aria-expanded="false">Parla con Medi</button><button id="installClinicianApp" type="button" class="btn secondary hidden">Installa app</button><button id="logout" class="btn secondary hidden">Esci</button></div>
   </div>
 
   <section id="auth" class="card auth auth-premium">
@@ -87,6 +87,7 @@
 
   <section id="portal" class="hidden">
     <div class="beta">Versione beta clinica. Le segnalazioni di benessere non sono una diagnosi e non sostituiscono i canali di emergenza.</div>
+    <section id="voicePanel" class="card voice-panel hidden" aria-label="Comandi Medi"><div class="row between"><div><span class="eyebrow">MEDITALY · MEDI</span><h2>Comandi vocali</h2><p>Il microfono si attiva solo premendo il pulsante. Puoi anche scrivere il comando.</p></div><button id="voiceClose" type="button" class="btn secondary" aria-label="Chiudi comandi vocali">Chiudi</button></div><div class="voice-compose"><button id="voiceListen" type="button" class="btn">Avvia microfono</button><label class="field" for="voiceText">Comando<input id="voiceText" type="text" autocomplete="off" placeholder="Medi apri paziente … e mostrami la terapia"></label><button id="voiceRun" type="button" class="btn secondary">Esegui</button></div><label class="voice-privacy"><input id="voicePrivacy" type="checkbox"> Attiva il riconoscimento del browser: in alcuni browser l’audio può essere elaborato da un servizio esterno. Usa il campo testuale se non vuoi condividere la voce.</label><p class="small muted">Esempi: «Medi apri paziente Ciro Maiello» · «Elencami la terapia in corso» · «Togli Cardioaspirina e inserisci Tachipirina due volte al giorno». Le modifiche richiedono una conferma manuale.</p><div id="voiceResult" role="status" aria-live="polite"></div><div id="voiceDraft"></div></section>
     <div class="grid">
       <aside class="card nav">
         <button class="on" data-view="overview">Panoramica</button>
@@ -131,7 +132,7 @@
               <div class="row between"><div><h3 style="margin:0">Template GISE</h3><div class="small muted">Modelli precompilati basati su documenti pubblici SICI-GISE. Il medico deve verificarli e personalizzarli prima dell'uso.</div></div><span class="pill">Fonte GISE</span></div>
               <div id="giseTemplateList" class="list" style="margin-top:10px"></div>
             </div>
-            <div class="two">
+            <div class="two protocol-layout">
               <div>
                 <div class="field"><label>Nome protocollo</label><input id="protoName" placeholder="Es. Monitoraggio intensivo"></div>
                 <div class="field"><label>Descrizione</label><textarea id="protoDesc" rows="3"></textarea></div>
@@ -139,11 +140,11 @@
                 <div class="field"><label>Ora check-in quotidiano</label><input id="protoTime" type="time" value="09:00"></div>
                 <div class="field"><label>Promemoria controlli (giorni prima)</label><input id="protoOffsets" value="7,1,0"></div>
                 <div class="row"><label><input id="protoYellow" type="checkbox"> Evidenzia anche giallo</label><label><input id="protoMissed" type="checkbox"> Evidenzia check-in mancato</label></div>
-                <div class="card" style="margin-top:14px;background:#fbfdfe">
+                <div class="card proto-plan-section" style="margin-top:14px;background:#fbfdfe">
                   <div class="row between"><div><b>Farmaci previsti dal protocollo</b><div class="small muted">Vengono aggiunti al percorso del paziente quando applichi il protocollo. Verifica sempre farmaco, dose e orari.</div></div><button id="addProtoMed" type="button" class="btn secondary">＋ Farmaco</button></div>
                   <div id="protoMedList" class="list" style="margin-top:10px"></div>
                 </div>
-                <div class="card" style="margin-top:14px;background:#fbfdfe">
+                <div class="card proto-plan-section" style="margin-top:14px;background:#fbfdfe">
                   <div class="row between"><div><b>Controlli previsti</b><div class="small muted">Le date vengono calcolate rispetto al giorno di applicazione del protocollo.</div></div><button id="addProtoFollow" type="button" class="btn secondary">＋ Controllo</button></div>
                   <div id="protoFollowList" class="list" style="margin-top:10px"></div>
                 </div>

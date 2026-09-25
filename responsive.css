@@ -124,3 +124,73 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .admin-metric{padding:10px}
   .admin-metric strong{font-size:23px}
 }
+
+/* Piani di cura: editori e riepiloghi con una gerarchia visiva unica. */
+#patientDetail .tabs{padding-bottom:8px;border-bottom:1px solid #e3edf4}
+#patientDetail .tabs button{font-weight:750;color:#41617d}
+#patientDetail .tabs button.on{color:#fff;box-shadow:0 4px 12px rgba(13,93,160,.18)}
+.care-intro{margin:18px 0 17px;padding:16px 18px;border:1px solid #d8e8f5;border-radius:16px;background:linear-gradient(120deg,#f3f9ff,#fff)}
+.care-intro strong{display:block;font-size:18px;color:#153e63;letter-spacing:-.02em}
+.care-intro p{margin:5px 0 0;font-size:13px;line-height:1.55;color:#627d94}
+#therapy>.two,#controls>.two{gap:18px;align-items:start}
+#therapy>.two>div:first-child,#therapy>.two>div:nth-child(2),#controls>.two>div{min-width:0;border:1px solid #dbe8f2;background:#fff;border-radius:18px;padding:21px;box-shadow:0 8px 24px rgba(26,70,112,.045)}
+#therapy>.two>div:nth-child(3){grid-column:1/-1;margin:0}
+#therapy>.two>div>h3,#controls>.two>div>h3{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:#173b5a;font-size:18px;letter-spacing:-.025em}
+#therapy>.two>div>h3::before,#controls>.two>div>h3::before{content:'';width:8px;height:26px;border-radius:10px;background:#1683cd;flex:none}
+#therapy>.two>div:nth-child(2)>h3::before,#controls>.two>div:nth-child(2)>h3::before{background:#64ad9e}
+#therapy>.two>.card h3{margin:0;font-size:18px;color:#173b5a}
+#therapy .field,#controls .field,#protocols .field,#careReviewPanel .field,#protocolReview .field{min-width:0}
+#therapy .field label,#controls .field label,#protocols .field label,#careReviewPanel .field,#protocolReview .field label{color:#35536d;font-size:12px;font-weight:750;letter-spacing:.01em}
+#therapy .field input,#therapy .field select,#therapy .field textarea,#controls .field input,#controls .field select,#controls .field textarea,#protocols .field input,#protocols .field select,#protocols .field textarea,#careReviewPanel input,#careReviewPanel select,#careReviewPanel textarea,#protocolReview input,#protocolReview select,#protocolReview textarea{background:#fbfdff;border:1px solid #cbddea;border-radius:11px;min-height:46px;color:#183b59;box-shadow:inset 0 1px 2px rgba(20,60,90,.025)}
+#therapy .field input:focus,#therapy .field textarea:focus,#controls .field input:focus,#controls .field textarea:focus,#protocols .field input:focus,#protocols .field textarea:focus,#careReviewPanel input:focus,#careReviewPanel textarea:focus,#protocolReview input:focus{outline:2px solid #9fd5ff;outline-offset:1px;border-color:#348ac8;background:#fff}
+#therapy #saveMed,#controls #saveFu,#protocols #saveProto,#careReviewPanel #careConfirm,#protocolReview #confirmReviewedProtocol{min-height:48px;padding-inline:19px;background:#1264a0;box-shadow:0 7px 16px rgba(18,100,160,.18)}
+#therapy #saveMed:hover,#controls #saveFu:hover,#protocols #saveProto:hover,#careReviewPanel #careConfirm:hover,#protocolReview #confirmReviewedProtocol:hover{background:#0e527f}
+#therapy #therapyCurrent .item,#controls .table-like .item{padding:15px 16px;border-color:#dbe9f1;background:#fbfdff}
+#therapy #therapyCurrent .item b,#controls .table-like .item b{color:#183d5b;line-height:1.4}
+#therapy #therapyCurrent .item .small,#controls .table-like .item .small{margin-top:5px;line-height:1.5}
+#protocols>.card>h2{color:#173b5a;letter-spacing:-.025em}
+#protocols .protocol-layout{grid-template-columns:minmax(0,1.25fr) minmax(270px,.75fr);align-items:start;gap:20px}
+#protocols .protocol-layout>div:first-child,#protocols .protocol-layout>div:last-child{min-width:0;padding:20px;border:1px solid #dbe8f2;border-radius:18px;background:#fff}
+#protocols .protocol-layout>div:last-child{background:#f8fbfe}
+#protocols .protocol-layout>div:last-child>h3{margin:0 0 16px;color:#173b5a}
+#protocols .proto-plan-section{background:#f7fbff!important;border-color:#d9e8f3}
+#protocols .proto-plan-section>.row{align-items:flex-start;gap:14px}
+#protocols .proto-plan-section>.row>div{min-width:0;flex:1}
+#protocols .proto-plan-section b{color:#173b5a}
+.proto-med-row,.proto-follow-row,.care-med,.care-follow,.reviewed-med,.reviewed-fu{border:1px solid #d5e5f0!important;border-left:4px solid #58a8d7!important;background:#fff!important;border-radius:14px!important;padding:16px!important;box-shadow:0 5px 16px rgba(30,77,110,.04)}
+.proto-follow-row,.care-follow,.reviewed-fu{border-left-color:#68b6a6!important}
+.care-row-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:#1e5277;font-size:12px;font-weight:850;letter-spacing:.045em;text-transform:uppercase}
+.care-row-head::before{content:'';width:9px;height:9px;border-radius:50%;background:#419bcf;flex:none}
+.proto-follow-row .care-row-head::before,.care-follow .care-row-head::before{background:#54aa99}
+.proto-med-row .proto-remove,.proto-follow-row .proto-remove,.care-med .remove,.care-follow .remove{background:#fff!important;color:#a34444!important;border:1px solid #efd0cf!important;padding:8px 12px;font-size:12px;box-shadow:none;margin-top:5px}
+#protocols .proto-plan-section>.row>.btn,#careReviewPanel #careAddMed,#careReviewPanel #careAddFollow,#protocolReview #addReviewedMed{border:1px solid #bfdaee;background:#fff;color:#17679d;white-space:nowrap}
+#careReviewPanel,#protocolReview{border-color:#cbdfea;box-shadow:0 14px 36px rgba(20,71,106,.09)}
+#careReviewPanel>h3,#protocolReview>h3{color:#173b5a;font-size:20px;letter-spacing:-.025em}
+#careReviewPanel>h4,#protocolReview>h4{padding-top:16px;border-top:1px solid #e3edf4;color:#1a4f71}
+#careReviewPanel .results .drug-choice{margin:3px;white-space:normal;text-align:left}
+@media(max-width:900px){#protocols .protocol-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){
+  .care-intro{padding:14px;margin:12px 0}.care-intro strong{font-size:17px}
+  #therapy>.two>div:first-child,#therapy>.two>div:nth-child(2),#controls>.two>div,#protocols .protocol-layout>div:first-child,#protocols .protocol-layout>div:last-child{padding:16px;border-radius:15px}
+  #therapy>.two>div:nth-child(3){grid-column:auto}
+  #therapy #saveMed,#controls #saveFu,#protocols #saveProto,#careReviewPanel #careConfirm,#protocolReview #confirmReviewedProtocol{width:100%}
+  #protocols .proto-plan-section>.row{flex-direction:column;align-items:stretch}
+  #protocols .proto-plan-section>.row>.btn{width:100%}
+  .proto-med-row,.proto-follow-row,.care-med,.care-follow,.reviewed-med,.reviewed-fu{padding:13px!important}
+}
+
+/* Medi per il medico: sessione vocale esplicita e bozza sempre visibile. */
+.voice-panel{margin:0 0 16px;border-color:#c8dfef;background:linear-gradient(125deg,#f6fbff,#fff 45%);box-shadow:0 12px 28px rgba(28,76,116,.08)}
+.voice-panel h2{margin:4px 0 5px;font-size:21px;color:#143c5d;letter-spacing:-.025em}
+.voice-panel p{margin:4px 0;line-height:1.55;color:#57738a}
+.voice-compose{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:end;gap:10px;margin:16px 0 10px}
+.voice-compose .field{margin:0;min-width:0}.voice-compose .field input{min-height:45px}
+.voice-compose>.btn{min-height:45px}
+.voice-privacy{display:flex;align-items:flex-start;gap:8px;color:#58718a;font-size:12px;line-height:1.4;margin:10px 0}
+.voice-privacy input{margin-top:2px;flex:none}
+#voiceResult:not(:empty){border-left:3px solid #449bd2;background:#eff7fd;border-radius:8px;padding:10px 12px;margin:12px 0;color:#184b70;font-size:13px;font-weight:700}
+.voice-review{margin-top:12px;padding:17px;border:1px solid #cfe3ef;border-radius:15px;background:#fff}
+.voice-review h3{margin:0 0 8px;color:#153c5b}.voice-review .field{display:block}
+.voice-review .field input,.voice-review .field textarea{display:block;width:100%;min-height:44px;border:1px solid #cbddea;border-radius:10px;padding:10px 12px;background:#fbfdff;margin-top:6px}
+.voice-message-preview{white-space:pre-wrap;padding:13px;border:1px solid #dbe7ef;border-radius:10px;background:#f8fbfe;color:#203f59!important}
+@media(max-width:700px){.voice-compose{grid-template-columns:1fr}.voice-compose .field{order:-1}.voice-panel>.row{align-items:flex-start}.voice-panel #voiceClose{margin-left:auto}.voice-review{padding:13px}}
