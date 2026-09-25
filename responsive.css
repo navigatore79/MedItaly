@@ -80,3 +80,47 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .kpi b{font-size:21px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* Amministrazione: panoramica e azioni leggibili senza scroll orizzontale. */
+#admin,.admin-layout,.admin-columns,.admin-panel,.admin-entry-row{min-width:0}
+.admin-page-head{flex-wrap:wrap;align-items:flex-start}
+.admin-page-head>div{min-width:0;flex:1 1 280px}
+.admin-page-head .admin-identity{white-space:normal;line-height:1.35}
+.admin-metric{min-width:0;overflow-wrap:anywhere}
+.admin-association-form select{max-width:100%;text-overflow:ellipsis}
+.admin-entry-main{min-width:0;flex:1 1 180px}
+.admin-entry-actions{min-width:0}
+.admin-panel-head>div{min-width:0}
+@media(min-width:901px){
+  .admin-columns{grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr)}
+  .admin-panel{padding:clamp(18px,2vw,26px)}
+  .admin-entry-actions .btn{min-height:42px}
+}
+@media(max-width:700px){
+  #admin{padding-bottom:8px}
+  .admin-page-head{gap:10px;margin:6px 0 16px}
+  .admin-page-head h1{font-size:26px;line-height:1.15}
+  .admin-page-head p{font-size:14px}
+  .admin-page-head .admin-identity{font-size:11px;padding:7px 10px}
+  .admin-layout,.admin-columns{gap:12px}
+  .admin-panel{padding:16px;border-radius:17px}
+  .admin-panel-head{gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .admin-panel-head h2{font-size:18px}
+  .admin-panel-head .admin-count{white-space:normal}
+  .admin-metric{padding:13px;border-radius:14px}
+  .admin-metric small{font-size:12px;line-height:1.25}
+  .admin-metric strong{font-size:26px}
+  .admin-association-form{grid-template-columns:minmax(0,1fr);gap:10px}
+  .admin-association-form select{font-size:16px}
+  .admin-form-arrow{display:none}
+  .admin-panel .admin-primary{width:100%;min-height:48px}
+  .admin-entry-row{align-items:stretch;flex-direction:column;gap:10px;padding:13px}
+  .admin-entry-actions{width:100%;justify-content:flex-start;align-items:center}
+  .admin-entry-actions .btn{flex:1 1 auto;min-height:44px;white-space:normal}
+  .admin-account-panel .admin-list{max-height:none;overflow:visible;padding-right:0}
+}
+@media(max-width:390px){
+  .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-metric{padding:10px}
+  .admin-metric strong{font-size:23px}
+}
