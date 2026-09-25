@@ -41,7 +41,7 @@ const SUPABASE_KEY='sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM';
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
 const LEGAL_VERSION='2.1';
 const MARCO_TEST_CLINICIAN_ID='985c1b31-a967-4c61-abe9-243fc8ea5efd';
-const $=id=>document.getElementById(id); let me=null,patients=[],selected=null,workspace='doctor';
+const $=id=>document.getElementById(id); let me=null,patients=[],selected=null,workspace='doctor',editingProtocol=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const fmt=d=>d?new Date(d).toLocaleString('it-IT'):'—';
 const healthLabel=s=>({green:'Bene',yellow:'Così così',red:'Non sto bene'})[s]||'Nessun check-in';
@@ -135,6 +135,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='messages') await loadMessages();
   if(b.dataset.view==='delivery')loadDelivery();
   if(b.dataset.view==='admin')loadAdmin();
+  if(b.dataset.view==='protocols')loadProtocols();
   if(b.dataset.view==='marcoDoctor')loadMarcoDoctor();
   if(b.dataset.view==='testDoctor')loadTestDoctor();
 });
@@ -151,7 +152,7 @@ function setWorkspace(mode){
   $('workspaceHint').textContent=descriptions[workspace];
   document.querySelectorAll('.nav button').forEach(button=>{
     const type=button.dataset.view;
-    button.classList.toggle('hidden',workspace==='admin'?!['admin','marcoDoctor'].includes(type):workspace==='test'?type!=='testDoctor':['admin','marcoDoctor','testDoctor'].includes(type));
+    button.classList.toggle('hidden',workspace==='admin'?!['admin','marcoDoctor','protocols'].includes(type):workspace==='test'?type!=='testDoctor':['admin','marcoDoctor','testDoctor'].includes(type));
   });
   const first=workspace==='admin'?'admin':workspace==='test'?'testDoctor':'overview';
   document.querySelector(`.nav button[data-view="${first}"]`)?.click();
@@ -872,6 +873,7 @@ function renderGiseTemplates(){
     </div>`).join('');
   document.querySelectorAll('.use-gise-template').forEach(b=>b.onclick=()=>{
     const x=GISE_PROTOCOL_TEMPLATES[Number(b.dataset.i)]; if(!x)return;
+    resetProtocolEditor();
     $('protoName').value=x.name;
     $('protoDesc').value=x.description+' Fonte: '+x.source+'. Verificare e personalizzare sul singolo paziente.';
     $('protoTime').value=x.time;
@@ -885,20 +887,42 @@ function renderGiseTemplates(){
   });
 }
 
+function resetProtocolEditor(){
+  editingProtocol=null;$('protoName').value='';$('protoDesc').value='';$('protoTime').value='09:00';$('protoOffsets').value='7,1,0';$('protoYellow').checked=false;$('protoMissed').checked=false;$('protoShared').checked=true;clearProtocolPlan();$('saveProto').textContent='Salva protocollo';$('cancelProtoEdit').classList.add('hidden');
+}
+$('cancelProtoEdit').onclick=resetProtocolEditor;
 async function loadProtocols(){
   const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
-  const{data}=await sb.from('monitoring_protocols').select('*').eq('clinician_id',uid).order('created_at',{ascending:false});
+  $('adminProtocolOption').classList.toggle('hidden',me?.role!=='Administrator');
+  const {data,error}=await sb.from('monitoring_protocols').select('*').or('clinician_id.eq.'+uid+',and(is_shared.eq.true,clinician_id.neq.'+uid+')').order('created_at',{ascending:false});
   renderGiseTemplates();
-  $('protocolList').innerHTML=(data||[]).map(x=>`<div class="item"><div class="row between"><b>${esc(x.name)}</b><button type="button" class="btn secondary open-saved-proto" data-id="${x.id}">Apri</button></div><div class="small muted">${esc(x.description||'')} · check-in ${esc(x.checkin_time?.slice(0,5)||'09:00')}</div><div class="row"><span class="pill">${(x.medication_plan||[]).length} terapie</span><span class="pill">${(x.followup_plan||[]).length} controlli</span></div><div class="saved-proto-detail hidden" id="saved-${x.id}"><div class="small">${(x.followup_plan||[]).map(f=>`<p>📅 ${esc(f.label)} · dopo ${esc(f.after_days)} giorni</p>`).join('')||'Nessun controllo.'}${(x.medication_plan||[]).map(m=>`<p>💊 ${esc(m.name)} · ${esc(m.dose||'dose da confermare')}</p>`).join('')}</div><button type="button" class="btn apply-saved-proto" data-id="${x.id}">Applica al paziente</button></div></div>`).join('')||'<p class="muted">Nessun protocollo salvato.</p>';
+  if(error){$('protocolList').innerHTML='<p class="err">'+esc(error.message)+'</p>';return;}
+  $('protocolList').innerHTML=(data||[]).map(x=>{
+    const own=x.clinician_id===uid,shared=x.is_shared&&!own;
+    return `<div class="item"><b>${esc(x.name)}</b><div class="row" style="margin:8px 0"><span class="pill">${shared?'Modello amministratore':x.is_shared?'Condiviso':'Personale'}</span><span class="pill">${x.is_active?'Attivo':'Archiviato'}</span><span class="pill">${(x.medication_plan||[]).length} terapie</span><span class="pill">${(x.followup_plan||[]).length} controlli</span></div><div class="small muted">${esc(x.description||'')} · check-in ${esc(x.checkin_time?.slice(0,5)||'09:00')}</div><div class="row" style="margin-top:10px"><button type="button" class="btn secondary open-saved-proto" data-id="${x.id}">Apri</button>${shared?`<button type="button" class="btn copy-shared-proto" data-id="${x.id}">Copia e personalizza</button>`:own?`<button type="button" class="btn secondary edit-saved-proto" data-id="${x.id}">Modifica</button><button type="button" class="btn secondary status-saved-proto" data-id="${x.id}">${x.is_active?'Archivia':'Riattiva'}</button>`:''}</div><div class="saved-proto-detail hidden" id="saved-${x.id}"><div class="small">${(x.followup_plan||[]).map(f=>`<p>📅 ${esc(f.label)} · dopo ${esc(f.after_days)} giorni</p>`).join('')||'Nessun controllo.'}${(x.medication_plan||[]).map(m=>`<p>💊 ${esc(m.name)} · ${esc(m.dose||'dose da confermare')}</p>`).join('')}</div>${own&&x.is_active?`<button type="button" class="btn apply-saved-proto" data-id="${x.id}">Rivedi per il paziente</button>`:''}</div></div>`;
+  }).join('')||'<p class="muted">Nessun protocollo disponibile.</p>';
   document.querySelectorAll('.open-saved-proto').forEach(b=>b.onclick=()=>{const detail=$('saved-'+b.dataset.id);detail.classList.toggle('hidden');b.textContent=detail.classList.contains('hidden')?'Apri':'Chiudi';});
   document.querySelectorAll('.apply-saved-proto').forEach(b=>b.onclick=async()=>{if(!selected)return out($('protoMsg'),'Apri prima il paziente dalla sezione Pazienti, poi torna ai Protocolli.');document.querySelector('[data-view="patients"]').click();await openPatient(selected);$('patientProtocol').value=b.dataset.id;$('patientDetail').querySelector('[data-tab="settings"]')?.click();$('applyProto').click();});
+  document.querySelectorAll('.copy-shared-proto').forEach(b=>b.onclick=async()=>{
+    const x=data.find(p=>p.id===b.dataset.id);if(!x||!x.is_shared||!x.is_active||me?.role!=='Clinician')return;
+    const row={clinician_id:uid,name:x.name,description:x.description,source_reference:x.source_reference||'Modello condiviso dall’amministratore',is_shared:false,checkin_enabled:x.checkin_enabled,checkin_time:x.checkin_time,checkin_frequency:x.checkin_frequency,checkin_weekdays:x.checkin_weekdays,reasons_catalog:x.reasons_catalog,alert_on_yellow:x.alert_on_yellow,alert_on_red:x.alert_on_red,missed_checkin_alert:x.missed_checkin_alert,medication_reminder_enabled:x.medication_reminder_enabled,followup_reminder_offsets:x.followup_reminder_offsets,medication_plan:x.medication_plan,followup_plan:x.followup_plan};
+    b.disabled=true;const{error}=await sb.from('monitoring_protocols').insert(row);b.disabled=false;
+    if(error)return out($('protoMsg'),error.message);
+    out($('protoMsg'),'Copia personale creata. Rivedi il piano prima di applicarlo.',true);await loadProtocols();
+  });
+  document.querySelectorAll('.edit-saved-proto').forEach(b=>b.onclick=()=>{
+    const x=data.find(p=>p.id===b.dataset.id);if(!x||x.clinician_id!==uid)return;
+    editingProtocol=x.id;$('protoName').value=x.name;$('protoDesc').value=x.description||'';$('protoTime').value=(x.checkin_time||'09:00').slice(0,5);$('protoOffsets').value=(x.followup_reminder_offsets||[7,1,0]).join(',');$('protoYellow').checked=!!x.alert_on_yellow;$('protoMissed').checked=!!x.missed_checkin_alert;$('protoShared').checked=!!x.is_shared;clearProtocolPlan();(x.medication_plan||[]).forEach(addProtoMedRow);(x.followup_plan||[]).forEach(addProtoFollowRow);$('saveProto').textContent='Salva modifiche';$('cancelProtoEdit').classList.remove('hidden');$('protoName').scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  document.querySelectorAll('.status-saved-proto').forEach(b=>b.onclick=async()=>{const x=data.find(p=>p.id===b.dataset.id);if(!x||x.clinician_id!==uid)return;if(x.is_active&&!confirm('Archiviare questo protocollo? I percorsi già assegnati non vengono cancellati.'))return;const{error}=await sb.from('monitoring_protocols').update({is_active:!x.is_active}).eq('id',x.id).eq('clinician_id',uid);if(error)return out($('protoMsg'),error.message);await loadProtocols();});
 }
 $('saveProto').onclick=async()=>{
   const name=$('protoName').value.trim();if(!name)return out($('protoMsg'),'Inserisci il nome.');
-  const offsets=$('protoOffsets').value.split(',').map(Number).filter(Number.isFinite);const uid=(await sb.auth.getUser()).data.user.id;
-  const plan=readProtocolPlan();
-  const{error}=await sb.from('monitoring_protocols').insert({clinician_id:uid,name,description:$('protoDesc').value.trim(),checkin_enabled:true,checkin_time:$('protoTime').value||'09:00',checkin_frequency:'daily',checkin_weekdays:[0,1,2,3,4,5,6],alert_on_yellow:$('protoYellow').checked,alert_on_red:true,missed_checkin_alert:$('protoMissed').checked,medication_reminder_enabled:true,followup_reminder_offsets:offsets,medication_plan:plan.medication_plan,followup_plan:plan.followup_plan,source_reference:$('protoDesc').value.includes('Fonte:')?'SICI-GISE / template verificato dal medico':null});
-  if(error)return out($('protoMsg'),error.message);out($('protoMsg'),'Protocollo salvato con '+plan.medication_plan.length+' farmaci e '+plan.followup_plan.length+' controlli.',true);$('protoName').value='';$('protoDesc').value='';clearProtocolPlan();loadProtocols();
+  const offsets=$('protoOffsets').value.split(',').map(x=>Number(x.trim())).filter(x=>Number.isInteger(x)&&x>=0&&x<=365);if(!offsets.length)return out($('protoMsg'),'Indica almeno un numero di giorni valido.');
+  const uid=(await sb.auth.getUser()).data.user.id,plan=readProtocolPlan();
+  const payload={name,description:$('protoDesc').value.trim(),is_shared:me.role==='Administrator'&&$('protoShared').checked,checkin_enabled:true,checkin_time:$('protoTime').value||'09:00',checkin_frequency:'daily',checkin_weekdays:[0,1,2,3,4,5,6],alert_on_yellow:$('protoYellow').checked,alert_on_red:true,missed_checkin_alert:$('protoMissed').checked,medication_reminder_enabled:true,followup_reminder_offsets:offsets,medication_plan:plan.medication_plan,followup_plan:plan.followup_plan,source_reference:$('protoDesc').value.includes('Fonte:')?'SICI-GISE / template verificato dal medico':null};
+  const{error}=editingProtocol?await sb.from('monitoring_protocols').update(payload).eq('id',editingProtocol).eq('clinician_id',uid):await sb.from('monitoring_protocols').insert({...payload,clinician_id:uid});
+  if(error)return out($('protoMsg'),error.message);out($('protoMsg'),'Protocollo salvato con '+plan.medication_plan.length+' farmaci e '+plan.followup_plan.length+' controlli.',true);resetProtocolEditor();await loadProtocols();
 };
 
 const{data:{session}}=await sb.auth.getSession();if(session)boot();

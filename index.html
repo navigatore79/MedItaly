@@ -125,7 +125,7 @@
         <section id="protocols" class="view hidden">
           <div class="card">
             <h2>Protocolli di monitoraggio</h2>
-            <p class="muted">Crea modelli riutilizzabili e personalizzabili per ciascun paziente.</p>
+            <p class="muted">L’amministratore condivide modelli; il medico ne crea una copia personale e verifica ogni farmaco e controllo prima di applicarla.</p>
             <div class="card" style="margin:14px 0;background:#f8fbfd;border:1px solid #dfe9ee">
               <div class="row between"><div><h3 style="margin:0">Template GISE</h3><div class="small muted">Modelli precompilati basati su documenti pubblici SICI-GISE. Il medico deve verificarli e personalizzarli prima dell'uso.</div></div><span class="pill">Fonte GISE</span></div>
               <div id="giseTemplateList" class="list" style="margin-top:10px"></div>
@@ -134,6 +134,7 @@
               <div>
                 <div class="field"><label>Nome protocollo</label><input id="protoName" placeholder="Es. Monitoraggio intensivo"></div>
                 <div class="field"><label>Descrizione</label><textarea id="protoDesc" rows="3"></textarea></div>
+                <div id="adminProtocolOption" class="field hidden"><label><input id="protoShared" type="checkbox" checked> Rendi disponibile ai medici</label></div>
                 <div class="field"><label>Ora check-in quotidiano</label><input id="protoTime" type="time" value="09:00"></div>
                 <div class="field"><label>Promemoria controlli (giorni prima)</label><input id="protoOffsets" value="7,1,0"></div>
                 <div class="row"><label><input id="protoYellow" type="checkbox"> Evidenzia anche giallo</label><label><input id="protoMissed" type="checkbox"> Evidenzia check-in mancato</label></div>
@@ -145,9 +146,9 @@
                   <div class="row between"><div><b>Controlli previsti</b><div class="small muted">Le date vengono calcolate rispetto al giorno di applicazione del protocollo.</div></div><button id="addProtoFollow" type="button" class="btn secondary">＋ Controllo</button></div>
                   <div id="protoFollowList" class="list" style="margin-top:10px"></div>
                 </div>
-                <button id="saveProto" class="btn" style="margin-top:12px">Salva protocollo</button><div id="protoMsg"></div>
+                <button id="saveProto" class="btn" style="margin-top:12px">Salva protocollo</button> <button id="cancelProtoEdit" type="button" class="btn secondary hidden">Annulla modifica</button><div id="protoMsg"></div>
               </div>
-              <div><h3>I miei protocolli</h3><div id="protocolList" class="list"></div></div>
+              <div><h3>Protocolli disponibili</h3><div id="protocolList" class="list"></div></div>
             </div>
           </div>
         </section>
