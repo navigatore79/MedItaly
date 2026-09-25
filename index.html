@@ -72,7 +72,7 @@
     <div id="registerPane" class="hidden">
       <h2>Registrazione medico</h2><p class="muted">L'account diventa clinico soltanto dopo approvazione dell'amministratore Meditaly.</p>
       <div class="field"><label>Nome e cognome</label><input id="rName" autocomplete="name"></div>
-      <div class="field"><label>Email</label><input id="rEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label>Email del medico per accesso e notifiche</label><input id="rEmail" type="email" autocomplete="email" required><div class="small muted">Dopo la conferma dell’indirizzo e l’approvazione del profilo riceverai gli avvisi dei pazienti e il riepilogo giornaliero alle 20:00 (ora italiana). I dettagli clinici restano nella dashboard protetta.</div></div>
       <div class="field"><label>Password</label><input id="rPass" type="password" autocomplete="new-password"></div>
       <div class="field"><label>Telefono</label><input id="rPhone" autocomplete="tel"></div>
       <div class="field"><label>Numero iscrizione Albo</label><input id="rReg"></div>
@@ -112,6 +112,7 @@
             <div class="kpi">Messaggi non letti<b id="kMsg">0</b></div>
           </div>
           <div class="card section"><h3>Richiedono attenzione</h3><div id="attentionList" class="list"></div></div>
+          <div class="card section"><h3>Registrazioni di oggi <span id="reportDay" class="small muted"></span></h3><p class="small muted">Dettaglio dei pazienti collegati, aggiornato in ora italiana.</p><div id="dailyReport" class="list"></div></div>
         </section>
 
         <section id="patients" class="view hidden">

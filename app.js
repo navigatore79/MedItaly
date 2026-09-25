@@ -444,7 +444,20 @@ $('patientSearch').oninput=renderPatients;
 async function loadOverview(){
   $('kPatients').textContent=patients.length;
   const ids=patients.map(x=>x.patient_id);careAlerts.clear();intakeAlerts.clear();
-  if(!ids.length){$('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
+  $('reportDay').textContent=romeDay();
+  if(!ids.length){$('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';$('dailyReport').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
+  const today=romeDay();
+  const [{data:todayCheckins,error:checkinError},{data:todayIntakes,error:intakeError}]=await Promise.all([
+    sb.from('patient_daily_checkins').select('patient_id,status,submitted_at').in('patient_id',ids).eq('checkin_date',today),
+    sb.from('medication_intakes').select('patient_id,status,confirmed_at').in('patient_id',ids).eq('intake_date',today)
+  ]);
+  $('dailyReport').innerHTML=checkinError||intakeError?`<div class="err">Report non disponibile: ${esc((checkinError||intakeError).message)}</div>`:
+    patients.map(patient=>{const checkin=(todayCheckins||[]).find(x=>x.patient_id===patient.patient_id),intakes=(todayIntakes||[]).filter(x=>x.patient_id===patient.patient_id);
+      if(!checkin&&!intakes.length)return '';
+      const taken=intakes.filter(x=>x.status==='taken').length,skipped=intakes.filter(x=>x.status==='skipped').length,unknown=intakes.filter(x=>x.status==='unknown').length;
+      return `<div class="patient attention" data-id="${esc(patient.patient_id)}"><b>${esc(patient.profile?.full_name||'Paziente')}</b><div class="small muted">Check-in: ${esc(checkin?healthLabel(checkin.status):'non registrato')} · Terapie registrate: ${taken} assunte, ${skipped} non assunte, ${unknown} non ricordate</div></div>`;
+    }).filter(Boolean).join('')||'<p class="muted">Nessuna registrazione oggi.</p>';
+  document.querySelectorAll('#dailyReport [data-id]').forEach(x=>x.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(x.dataset.id)});
   const [{data:signals,error:signalsError},{count:messagesCount,error:messagesError}]=await Promise.all([
     sb.from('care_signals').select('id,patient_id,kind,signal_date,status,created_at').eq('status','open').in('patient_id',ids).order('created_at',{ascending:false}).limit(100),
     sb.from('chat_messages').select('id',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).eq('is_read',false)
