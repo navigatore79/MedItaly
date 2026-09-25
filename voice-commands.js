@@ -22,23 +22,35 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null, active = false, busy = false, timer = null, messageFlow = null;
   const status = message => { $('voiceResult').textContent = message; };
+  function renderState(state = 'idle') {
+    panel.dataset.state = state;
+    const labels = {
+      idle: ['Microfono spento', 'Come posso aiutarti?', 'Attiva il microfono quando vuoi parlare con Medi. Rimarrà in ascolto finché non lo fermi.'],
+      listening: ['In ascolto', messageFlow?.stage === 'dictation' ? 'Detta il tuo messaggio' : messageFlow?.stage === 'review' ? 'Pronuncia «invia»' : 'Dimmi cosa vuoi fare', messageFlow?.stage === 'review' ? 'Puoi anche cambiare il testo qui sotto o dire «cambia messaggio».' : 'Medi tornerà in ascolto dopo ogni risposta.'],
+      working: ['Sto elaborando', 'Un momento…', 'Sto verificando il comando e il paziente selezionato.'],
+      review: ['Conferma necessaria', 'Controlla prima di inviare', 'Verifica destinatario e testo. Poi di’ «invia» o premi il pulsante.'],
+    };
+    const [label, title, hint] = labels[state];
+    $('voiceState').textContent = label; $('voicePrompt').textContent = title; $('voiceHint').textContent = hint;
+  }
   function stop() {
     active = false; clearTimeout(timer);
     if (recognition) { try { recognition.abort(); } catch {} recognition = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
-    listen.textContent = 'Avvia microfono';
+    listen.textContent = 'Attiva microfono'; renderState(messageFlow?.stage === 'review' ? 'review' : 'idle');
   }
   function scheduleListen() {
     if (!active || busy || document.hidden || panel.classList.contains('hidden')) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (!active || busy) return;
-      try { recognition.start(); listen.textContent = 'Ferma microfono'; status('Medi è in ascolto…'); }
+      try { recognition.start(); listen.textContent = 'Ferma ascolto'; renderState('listening'); }
       catch { timer = setTimeout(scheduleListen, 600); }
     }, 350);
   }
   function reply(message, aloud = false) {
     status(message);
+    renderState(messageFlow?.stage === 'review' ? 'review' : active ? 'working' : 'idle');
     if (!aloud || !active || !('speechSynthesis' in window)) return Promise.resolve();
     return new Promise(resolve => {
       speechSynthesis.cancel();
@@ -72,7 +84,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       <div class="two"><label class="field">Inizio<input id="voiceStart" type="date" value="${romeDay()}" required></label><label class="field">Fine (facoltativa)<input id="voiceEnd" type="date"></label></div>
       <label class="field">Istruzioni<textarea id="voiceInstructions" rows="2"></textarea></label><p class="small muted">Frequenza riconosciuta: ${proposed.frequency ? `${proposed.frequency} volte al giorno` : 'non specificata'}. Verifica nome, dose e orari sul piano clinico prima di confermare.</p>
       <div class="row"><button id="voiceConfirm" type="button" class="btn">Conferma sostituzione</button><button id="voiceCancel" type="button" class="btn secondary">Annulla</button></div><div id="voiceDraftResult" role="status"></div></div>`;
-    $('voiceCancel').onclick = () => { box.innerHTML = ''; status('Bozza annullata. Nessuna terapia modificata.'); };
+    $('voiceCancel').onclick = () => { box.innerHTML = ''; status('Bozza annullata. Nessuna terapia modificata.'); renderState(active ? 'listening' : 'idle'); };
     $('voiceConfirm').onclick = async () => {
       const times = $('voiceTimes').value.split(',').map(x => x.trim()).filter(Boolean);
       const name = $('voiceNewName').value.trim(), dose = $('voiceDose').value.trim(), route = $('voiceRoute').value.trim();
@@ -109,8 +121,10 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       if (body.length > 4000) return reply('Il messaggio supera 4000 caratteri. Dettane uno più breve.', aloud);
       messageFlow.body = body; messageFlow.stage = 'review';
       $('chatText').value = body;
-      $('voiceDraft').innerHTML = `<div class="voice-review"><h3>Messaggio da verificare</h3><p>Destinatario: <strong>${esc(messageFlow.patient.profile?.full_name || 'Paziente')}</strong></p><p class="voice-message-preview">${esc(body)}</p><p class="small muted">Di’ «invia» per spedire o «cambia messaggio» per dettarlo di nuovo.</p><button id="voiceMessageCancel" type="button" class="btn secondary">Annulla messaggio</button></div>`;
-      $('voiceMessageCancel').onclick = () => { messageFlow = null; $('voiceDraft').innerHTML = ''; status('Messaggio annullato.'); };
+      $('voiceDraft').innerHTML = `<div class="voice-review"><span class="voice-label">PASSO 3 DI 3 · CONFERMA</span><h3>Messaggio da verificare</h3><p>Destinatario: <strong>${esc(messageFlow.patient.profile?.full_name || 'Paziente')}</strong></p><label for="voiceMessageBody" class="voice-label">TESTO DEL MESSAGGIO</label><textarea id="voiceMessageBody" class="voice-message-preview" maxlength="4000" rows="4">${esc(body)}</textarea><p class="small muted">Controlla il testo: l’invio avviene solo con un nuovo «invia» o premendo il pulsante.</p><div class="voice-review-actions"><button id="voiceMessageSend" type="button" class="btn">Invia messaggio</button><button id="voiceMessageRedo" type="button" class="btn secondary">Detta di nuovo</button><button id="voiceMessageCancel" type="button" class="btn secondary">Annulla</button></div></div>`;
+      $('voiceMessageSend').onclick = () => processCommand(false, 'invia');
+      $('voiceMessageRedo').onclick = () => processCommand(false, 'cambia messaggio');
+      $('voiceMessageCancel').onclick = () => { messageFlow = null; $('voiceDraft').innerHTML = ''; status('Messaggio annullato.'); renderState(active ? 'listening' : 'idle'); };
       return reply('Testo acquisito. Verificalo sullo schermo e di’ invia per spedire, oppure cambia messaggio.', aloud);
     }
     if (/^(cambia messaggio|modifica messaggio|riscrivi)$/.test(command)) {
@@ -129,7 +143,9 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       $('patientDetail').querySelector('[data-tab="chat"]')?.click();
     }
     if (getRole() !== 'Clinician') return reply('Sessione medico terminata. Il messaggio non è stato inviato.', aloud);
-    $('chatText').value = flow.body;
+    const reviewedBody = $('voiceMessageBody')?.value.trim() || '';
+    if (!reviewedBody) return reply('Il messaggio è vuoto. Scrivi o detta un testo prima di inviare.', aloud);
+    $('chatText').value = reviewedBody;
     await $('sendChat').onclick();
     const result = $('chatMsg')?.textContent || '';
     if (!result.includes('Messaggio registrato')) return reply(result || 'Invio non riuscito. Il messaggio resta nella bozza.', aloud);
@@ -149,8 +165,8 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     if (intent.openMessages) {
       $('patientDetail').querySelector('[data-tab="chat"]')?.click();
       messageFlow = { patient, stage: 'dictation', body: '' };
-      $('voiceDraft').innerHTML = `<div class="voice-review"><h3>Nuovo messaggio per ${esc(patient.profile?.full_name || 'il paziente')}</h3><p>Detta il testo al prossimo ascolto. Il messaggio verrà mostrato prima dell’invio.</p><button id="voiceMessageCancel" type="button" class="btn secondary">Annulla</button></div>`;
-      $('voiceMessageCancel').onclick = () => { messageFlow = null; $('voiceDraft').innerHTML = ''; status('Messaggio annullato.'); };
+      $('voiceDraft').innerHTML = `<div class="voice-review"><span class="voice-label">PASSO 2 DI 3 · DETTATURA</span><h3>Nuovo messaggio per ${esc(patient.profile?.full_name || 'il paziente')}</h3><p>Il prossimo ascolto acquisisce il testo. Potrai rileggerlo e correggerlo prima dell’invio.</p><button id="voiceMessageCancel" type="button" class="btn secondary">Annulla</button></div>`;
+      $('voiceMessageCancel').onclick = () => { messageFlow = null; $('voiceDraft').innerHTML = ''; status('Messaggio annullato.'); renderState(active ? 'listening' : 'idle'); };
       return reply('Scheda messaggi aperta. Detta ora il messaggio per ' + (patient.profile?.full_name || 'il paziente') + '.', aloud);
     }
     if (!intent.listTherapy && !intent.replacement) return reply(`Ho aperto ${patient.profile?.full_name || 'il paziente'}.`, aloud);
@@ -168,10 +184,11 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     }
     return reply(message, aloud);
   }
-  async function processCommand(aloud = false) {
-    const raw = $('voiceText').value.trim();
+  async function processCommand(aloud = false, override = null) {
+    if (busy) return;
+    const raw = override || $('voiceText').value.trim();
     if (!raw) return status('Pronuncia o scrivi un comando.');
-    busy = true;
+    busy = true; $('voiceHeard').textContent = raw; renderState('working');
     try { await execute(raw, aloud); }
     catch (error) { await reply(error.message || 'Comando non riconosciuto.', aloud); }
     finally { busy = false; scheduleListen(); }
@@ -182,6 +199,11 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     if (open) stop(); else panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   $('voiceClose').onclick = () => { stop(); messageFlow = null; $('voiceDraft').innerHTML = ''; panel.classList.add('hidden'); toggle.setAttribute('aria-expanded', 'false'); };
+  document.querySelectorAll('[data-voice-example]').forEach(button => button.onclick = () => {
+    $('voiceText').value = button.dataset.voiceExample;
+    $('voiceText').focus();
+    $('voiceText').setSelectionRange($('voiceText').value.length, $('voiceText').value.length);
+  });
   $('voiceRun').onclick = () => processCommand(false);
   $('voiceText').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); processCommand(false); } };
   listen.onclick = () => {
@@ -192,8 +214,8 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     recognition.onresult = event => { $('voiceText').value = event.results[event.resultIndex][0].transcript; processCommand(true); };
     recognition.onerror = event => { if (['not-allowed','service-not-allowed','audio-capture'].includes(event.error)) { stop(); status('Microfono non disponibile: controlla il permesso del browser.'); } };
     recognition.onend = scheduleListen;
-    active = true; listen.textContent = 'Ferma microfono';
-    try { recognition.start(); status('Medi è in ascolto…'); }
+    active = true; listen.textContent = 'Ferma ascolto';
+    try { recognition.start(); renderState('listening'); }
     catch { scheduleListen(); }
   };
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
