@@ -17,6 +17,7 @@ body:has(#portal:not(.hidden)) .doc-version{background:#e8f3e9;color:#315e43}
 #portal .nav button{flex:0 0 auto;min-height:47px;padding:12px 12px 10px;background:transparent;color:#4b6a54;border:0;border-bottom:3px solid transparent;border-radius:0;font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap}
 #portal .nav button:hover{background:#f5f9f5;color:#245b3f}
 #portal .nav button.on{background:transparent;color:#1e6444;border-bottom-color:#438561;box-shadow:none}
+#portal .nav .nav-home-icon{display:inline-block;width:17px;height:17px;margin-right:7px;vertical-align:-3px;flex:none}
 #portal .grid>main{min-width:0}
 #portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{background:#fff;border:1px solid #dfe9e1;border-radius:5px;box-shadow:none}
 #portal .view>.card{padding:24px}
