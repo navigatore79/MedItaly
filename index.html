@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b68d1" />
+  <meta name="theme-color" content="#244d42" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="manifest" href="/clinica.webmanifest" />
@@ -50,6 +50,7 @@
     @media(max-width:900px){.delivery-grid{grid-template-columns:1fr 1fr}.delivery-grid>*:first-child{grid-column:1/-1}}@media(max-width:520px){.delivery-grid{grid-template-columns:1fr}.delivery-grid>*:first-child{grid-column:auto}}
   </style>
   <link rel="stylesheet" href="/responsive.css" />
+  <link rel="stylesheet" href="/clinica-editoriale.css" />
 </head>
 <body>
 <div class="wrap">
@@ -89,16 +90,16 @@
     <div class="beta">Versione beta clinica. Le segnalazioni di benessere non sono una diagnosi e non sostituiscono i canali di emergenza.</div>
     <section id="voicePanel" class="card voice-panel hidden" aria-label="Assistente vocale Medi" data-state="idle">
       <header class="voice-header"><div class="voice-brand"><span class="voice-mark" aria-hidden="true">✦</span><div><span class="eyebrow">ASSISTENTE MEDICO</span><h2>Medi</h2></div></div><button id="voiceClose" type="button" class="voice-close" aria-label="Chiudi assistente">Chiudi <span aria-hidden="true">×</span></button></header>
-      <div class="voice-dashboard"><div class="voice-stage"><div class="voice-orb" aria-hidden="true"><span>◉</span></div><div><span id="voiceState" class="voice-state">Microfono spento</span><h3 id="voicePrompt">Come posso aiutarti?</h3><p id="voiceHint">Attiva il microfono quando vuoi parlare con Medi. Rimarrà in ascolto fino a quando lo fermi.</p></div></div><div class="voice-actions"><button id="voiceListen" type="button" class="btn voice-primary">Attiva microfono</button><span class="voice-privacy-short">Il microfono parte solo su tua richiesta.</span></div></div>
+      <div class="voice-dashboard"><div class="voice-stage"><div class="voice-orb" aria-hidden="true"><span>◉</span></div><div><span id="voiceState" class="voice-state">Microfono spento</span><h3 id="voicePrompt">Come posso aiutarti?</h3><p id="voiceHint">Dopo la domanda iniziale puoi attivare Medi quando vuoi per altri comandi.</p></div></div><div class="voice-actions"><button id="voiceListen" type="button" class="btn voice-primary">Attiva microfono</button><span class="voice-privacy-short">All’accesso Medi tenta due ascolti brevi; poi il microfono si ferma.</span></div></div>
       <div class="voice-content"><div class="voice-main"><div class="voice-transcript"><span class="voice-label">HAI DETTO</span><div id="voiceHeard" class="voice-heard">Il comando riconosciuto comparirà qui.</div></div><div id="voiceResult" role="status" aria-live="polite"></div><div id="voiceDraft"></div><div class="voice-text-entry"><label for="voiceText">Oppure scrivi il comando</label><div class="voice-text-row"><input id="voiceText" type="text" autocomplete="off" placeholder="Es. apri paziente Ciro Maiello"><button id="voiceRun" type="button" class="btn secondary">Esegui</button></div></div></div><aside class="voice-help"><span class="voice-label">COSA PUOI CHIEDERE</span><button type="button" class="voice-example" data-voice-example="Medi apri paziente ">Apri un paziente <span>↗</span></button><button type="button" class="voice-example" data-voice-example="Elencami la terapia in corso">Leggi la terapia <span>↗</span></button><button type="button" class="voice-example" data-voice-example="Invia un messaggio al paziente ">Prepara un messaggio <span>↗</span></button><div class="voice-flow-guide"><strong>Messaggio in 3 passi</strong><span>1 · Scegli il paziente</span><span>2 · Detta il testo</span><span>3 · Di’ «invia»</span></div><p>La terapia si modifica soltanto dopo la verifica e la conferma manuale del medico.</p></aside></div>
-      <p class="voice-privacy">Quando premi «Attiva microfono», il browser chiede il permesso di ascoltare. Il riconoscimento può elaborare la voce tramite un servizio esterno; puoi usare il comando scritto in alternativa.</p>
+      <p class="voice-privacy">All’accesso Medi tenta di ascoltare «sì» o «no» per 4 secondi e, solo dopo «sì», nome e cognome per altri 4 secondi. Il browser può chiedere il permesso o bloccare l’avvio automatico. Il riconoscimento può usare un servizio esterno; puoi usare i pulsanti o il comando scritto.</p>
     </section>
     <div class="grid">
-      <aside class="card nav">
+      <aside class="card nav" aria-label="Navigazione clinica">
         <button class="on" data-view="overview">Panoramica</button>
         <button data-view="patients">Pazienti</button>
-        <button data-view="appointments">Appuntamenti</button>
-        <button data-view="protocols">Protocolli</button>
+        <button data-view="appointments">Agenda</button>
+        <button data-view="protocols">Modelli e protocolli</button>
         <button data-view="messages">Messaggi</button>
         <button data-view="delivery">Notifiche inviate</button>
         <button id="adminNav" data-view="admin" class="hidden">Amministrazione</button>
@@ -109,21 +110,21 @@
       </aside>
       <main>
         <section id="overview" class="view">
-          <div class="hero"><h1>Monitoraggio quotidiano</h1><p>Feedback del paziente, terapie, controlli e comunicazioni in un'unica dashboard.</p></div>
-          <div class="kpis">
-            <div class="kpi">Pazienti<b id="kPatients">0</b></div>
-            <div class="kpi">Malessere riferito<b id="kRed">0</b></div>
-            <div class="kpi">Effetti riferiti<b id="kYellow">0</b></div>
-            <div class="kpi">Più dosi non assunte<b id="kIntake">0</b></div>
-            <div class="kpi">Messaggi non letti<b id="kMsg">0</b></div>
+          <div class="hero"><div><span class="eyebrow">PANORAMICA CLINICA</span><h1>Le cure iniziano da ciò che conta</h1><p>Situazioni da valutare, messaggi e prossimi controlli.</p></div><button id="openPatientsFromOverview" class="btn" type="button">Apri pazienti</button></div>
+          <div class="kpis" aria-label="Riepilogo cliccabile">
+            <button class="kpi kpi-link" type="button" data-kpi="all">Pazienti<b id="kPatients">0</b><small>Apri elenco ↗</small></button>
+            <button class="kpi kpi-link" type="button" data-kpi="red_checkin">Malessere riferito<b id="kRed">0</b><small>Vedi pazienti ↗</small></button>
+            <button class="kpi kpi-link" type="button" data-kpi="side_effect">Effetti riferiti<b id="kYellow">0</b><small>Vedi pazienti ↗</small></button>
+            <button class="kpi kpi-link" type="button" data-kpi="repeated_skips">Più dosi non assunte<b id="kIntake">0</b><small>Vedi pazienti ↗</small></button>
+            <button class="kpi kpi-link" type="button" data-kpi="messages">Messaggi non letti<b id="kMsg">0</b><small>Apri messaggi ↗</small></button>
           </div>
-          <div class="card section"><h3>Richiedono attenzione</h3><div id="attentionList" class="list"></div></div>
-          <div class="card section"><h3>Registrazioni di oggi <span id="reportDay" class="small muted"></span></h3><p class="small muted">Dettaglio dei pazienti collegati, aggiornato in ora italiana.</p><div id="dailyReport" class="list"></div></div>
+          <div class="overview-columns"><div class="card section attention-section"><div class="attention-heading"><div><span class="eyebrow">PRIORITÀ</span><h3>Richiedono attenzione</h3></div><span id="attentionCount" class="attention-count">0 segnalazioni</span></div><div id="attentionList" class="list"></div></div>
+          <div class="card section"><span class="eyebrow">OGGI</span><h3>Registrazioni di oggi <span id="reportDay" class="small muted"></span></h3><p class="small muted">Dettaglio dei pazienti collegati, aggiornato in ora italiana.</p><div id="dailyReport" class="list"></div></div></div>
         </section>
 
         <section id="patients" class="view hidden">
           <div class="card">
-            <div class="row between"><h2>Pazienti assegnati</h2><input id="patientSearch" placeholder="Cerca paziente" style="max-width:280px;padding:10px;border:1px solid #cedce4;border-radius:10px"></div>
+            <div class="row between"><div><h2>Pazienti assegnati</h2><div id="patientFilterLabel" class="small muted"></div><button id="clearPatientFilter" type="button" class="btn secondary hidden">Mostra tutti</button></div><input id="patientSearch" placeholder="Cerca paziente" style="max-width:280px;padding:10px;border:1px solid #cedce4;border-radius:10px"></div>
             <div id="patientList" class="list"></div>
           </div>
           <div id="patientDetail" class="section hidden"></div>
@@ -199,7 +200,7 @@
 
         <section id="admin" class="view hidden"><header class="admin-page-head"><div><span class="eyebrow">GESTIONE MEDITALY</span><h1>Amministrazione</h1><p>Account, richieste e collegamenti tra pazienti e medici.</p></div><span class="admin-identity">Area riservata · Amministratore</span></header><div id="adminContent" class="admin-layout" aria-live="polite"></div></section>
         <section id="marcoDoctor" class="view hidden"><div class="card"><h2>Dr. Marco Test · collegamenti</h2><p class="notice">Vista amministrativa delle richieste e dei pazienti associati a questo account Clinician. Non dà accesso all'account di Marco né consente di scrivere messaggi a suo nome.</p><div id="marcoDoctorContent"></div></div></section>
-        <section id="testDoctor" class="view hidden"><div class="card"><h2>Supporto Test Medico</h2><p class="notice">Questa vista usa l’account amministratore per leggere il percorso e rispondere ai pazienti che hanno scelto Test Medico. Per provare terapie, controlli, protocolli e comandi vocali, accedi con un account medico approvato come Ciro TEST: le funzioni cliniche e i pazienti assegnati sono disponibili lì.</p><button id="switchToClinicianLogin" type="button" class="btn secondary">Esci e accedi come medico test</button><div id="testDoctorContent"></div></div></section>
+        <section id="testDoctor" class="view hidden"><div class="card"><h2>Supporto Test Medico</h2><p class="notice">Questa vista usa l’account amministratore per leggere il percorso e rispondere ai pazienti che hanno scelto Test Medico. Medi può navigare la dashboard amministrativa e aprire i pazienti assegnati al tuo account; per comandi clinici su terapie e messaggi accedi come medico approvato.</p><button id="switchToClinicianLogin" type="button" class="btn secondary">Esci e accedi come medico test</button><div id="testDoctorContent"></div></div></section>
 
         <section id="requests" class="view hidden">
           <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>
@@ -212,6 +213,8 @@
       </main>
     </div>
   </section>
+
+  <dialog id="patientVoiceWelcome" class="patient-voice-welcome" aria-labelledby="patientVoiceWelcomeTitle" aria-describedby="patientVoiceWelcomeHelp"><span class="eyebrow">MEDI · ASSISTENTE VOCALE</span><h2 id="patientVoiceWelcomeTitle">Vuoi richiamare la scheda di un paziente?</h2><p id="patientVoiceWelcomeHelp">Medi ascolta la risposta per 4 secondi. Se dici «sì», chiede nome e cognome; se dici «no», interrompe l’ascolto.</p><p id="patientVoiceStatus" class="welcome-status" role="status" aria-live="polite">Avvio della domanda vocale…</p><div id="patientVoiceNameEntry" class="field hidden"><label for="patientVoiceName">Nome e cognome</label><input id="patientVoiceName" type="text" autocomplete="off" placeholder="Nome Cognome"><button id="patientVoiceOpen" type="button" class="btn secondary">Apri scheda</button></div><div class="welcome-actions"><button id="patientVoiceYes" type="button" class="btn">Sì, cerca paziente</button><button id="patientVoiceNo" type="button" class="btn secondary">No, ferma ascolto</button><button id="patientVoiceRetry" type="button" class="btn secondary">Attiva ascolto</button></div></dialog>
 
   <div class="footer"><div class="legal-links"><a target="_blank" href="/documenti">Centro documenti</a><a target="_blank" href="/privacy-clinician">Privacy clinici</a><a target="_blank" href="/terms">Termini</a><a target="_blank" href="/security">Sicurezza</a><a target="_blank" href="/retention">Conservazione</a><a target="_blank" href="/medi-ai">Medi / IA</a><a target="_blank" href="/beta">Programma beta</a><a target="_blank" href="/proprieta-intellettuale">Proprietà intellettuale</a><a target="_blank" href="/subprocessors">Fornitori</a></div>Meditaly · Dashboard clinica Beta RC1 · © 2026 Ciro Maiello<br><span class="doc-version">Documenti pubblici v2.2</span></div>
 </div>
