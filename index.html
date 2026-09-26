@@ -99,6 +99,7 @@
       <aside class="card nav" aria-label="Navigazione clinica">
         <button class="on" data-view="overview">Panoramica</button>
         <button data-view="patients">Pazienti</button>
+        <button data-view="therapies">Terapie</button>
         <button data-view="appointments">Agenda</button>
         <button data-view="protocols">Modelli e protocolli</button>
         <button data-view="messages">Messaggi</button>
@@ -130,6 +131,8 @@
           </div>
           <div id="patientDetail" class="section hidden"></div>
         </section>
+
+        <section id="therapies" class="view hidden"><div class="card"><h2>Terapie dei pazienti</h2><p class="muted">Seleziona un paziente per modificare o rimuovere un farmaco dal suo piano.</p><div id="therapyPatientList" class="list"></div></div></section>
 
         <section id="protocols" class="view hidden">
           <div class="card">

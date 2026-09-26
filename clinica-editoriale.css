@@ -137,3 +137,9 @@ body:has(#portal:not(.hidden)) .top{background:#f8fbf8;border-bottom-color:#d2e4
 #portal #admin #adminAssociationTitle{color:#24543a}
 #portal #admin .admin-association-form select{background:#fff;color:#263e33;border:1px solid #abcdb4}
 #portal #admin #adminAddLink{font-weight:850}
+#portal .therapy-item{display:flex;align-items:center;justify-content:space-between;gap:18px}
+#portal .therapy-actions{flex-shrink:0}
+#portal .therapy-patient{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:16px;border:1px solid #d5e5d8;background:#fff;color:#284b39;cursor:pointer}
+#portal .therapy-patient:hover{background:#f3f8f3}
+#portal #cancelMedEdit{margin-left:8px}
+@media(max-width:700px){#portal .therapy-item{align-items:flex-start;flex-direction:column}#portal .therapy-actions{width:100%}}
