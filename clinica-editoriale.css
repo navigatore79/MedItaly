@@ -18,6 +18,42 @@ body:has(#portal:not(.hidden)) .doc-version{background:#e8f3e9;color:#315e43}
 #portal .nav button:hover{background:#f5f9f5;color:#245b3f}
 #portal .nav button.on{background:transparent;color:#1e6444;border-bottom-color:#438561;box-shadow:none}
 #portal .nav .nav-home-icon{display:inline-block;width:17px;height:17px;margin-right:7px;vertical-align:-3px;flex:none}
+
+/* Assistente all'apertura: stessa grammatica visiva verde della dashboard. */
+#portal .voice-panel{margin:16px 0 22px;border:1px solid #c7ddcd;border-radius:16px;background:#fff;box-shadow:0 18px 46px #24513b1c}
+#portal .voice-header{padding:18px 24px;background:#f6faf6;border-bottom:1px solid #e0ede2}
+#portal .voice-mark{border-radius:12px;background:#327454;box-shadow:none}
+#portal .voice-brand .eyebrow{color:#567b61;font-size:10px}
+#portal .voice-brand h2{color:#234d37;font-size:24px}
+#portal .voice-brand h2 small{margin-left:7px;color:#668473;font-size:12px;font-weight:500;letter-spacing:0}
+#portal .voice-close{color:#4d7059}
+#portal .voice-dashboard{gap:28px;padding:28px 30px;background:linear-gradient(112deg,#edf7ef 0%,#f8fbf7 62%,#fff 100%);border-color:#dcebdd}
+#portal .voice-stage{gap:25px}
+#portal .voice-orb{width:88px;height:88px;background:radial-gradient(circle at 32% 25%,#a6d9aa,#4c9873 54%,#245b45);box-shadow:0 0 0 8px #dcefe0,0 12px 25px #2e705434}
+#portal .voice-panel[data-state="review"] .voice-orb{background:radial-gradient(circle at 32% 25%,#f0d8ab,#c9944c 55%,#88602c)}
+#portal .voice-state{color:#4a7658;font-size:11px}
+#portal .voice-stage h3{margin:8px 0;color:#204c35;font-size:clamp(23px,2.2vw,31px);line-height:1.18}
+#portal .voice-stage p{max-width:600px;color:#567463;font-size:14px}
+#portal .voice-actions{max-width:230px}
+#portal .voice-primary{min-width:195px;background:#286b4c;box-shadow:none}
+#portal .voice-panel[data-state="listening"] .voice-primary{background:#1f6044}
+#portal .voice-privacy-short{color:#658474;line-height:1.4}
+#portal .voice-content{gap:24px;padding:25px 30px}
+#portal .voice-transcript{background:#f8fbf8;border-color:#dbe9df;border-radius:10px}
+#portal .voice-label{color:#5b8168}
+#portal .voice-heard{color:#31533d}
+#portal .voice-text-entry>label{color:#365c43}
+#portal .voice-text-row input{border-color:#c9decf;border-radius:8px}
+#portal .voice-help{border-color:#e2ede4}
+#portal .voice-example{color:#2b694a;border-color:#e4eee5}
+#portal .voice-example:hover{color:#20573e}
+#portal .voice-flow-guide{background:#eef6ef;color:#52735b}
+#portal .voice-flow-guide strong{color:#285c3f}
+#portal .voice-help p,#portal .voice-privacy{color:#677d6d}
+#portal .voice-privacy{border-color:#e2ede4}
+#portal #voiceResult:not(:empty){border-color:#5e9b6e;background:#edf7ef;color:#2c5b3e}
+@media(max-width:700px){#portal .voice-header{padding:15px 17px}#portal .voice-dashboard{padding:22px 18px}#portal .voice-stage{gap:16px}#portal .voice-orb{width:60px;height:60px;box-shadow:0 0 0 5px #dcefe0}#portal .voice-stage h3{font-size:22px}#portal .voice-actions{max-width:none}#portal .voice-content{padding:18px}}
+@media(prefers-reduced-motion:reduce){#portal .voice-orb{animation:none!important}}
 #portal .grid>main{min-width:0}
 #portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{background:#fff;border:1px solid #dfe9e1;border-radius:5px;box-shadow:none}
 #portal .view>.card{padding:24px}
