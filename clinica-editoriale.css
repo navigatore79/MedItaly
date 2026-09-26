@@ -5,7 +5,7 @@ body:has(#portal:not(.hidden)) .wrap{max-width:1450px;padding:0 clamp(16px,2.6vw
 body:has(#portal:not(.hidden)) .top{margin:0 calc(-1 * clamp(16px,2.6vw,40px)) 0;padding:17px clamp(16px,2.6vw,40px);background:#fff;border-bottom:1px solid #dfe9e0;gap:18px}
 body:has(#portal:not(.hidden)) .brand{color:#285741;font-size:24px;letter-spacing:-.035em}
 body:has(#portal:not(.hidden)) .brand span{color:#416e55}
-body:has(#portal:not(.hidden)) .brand-mark{background:#e1efe5;box-shadow:none}
+body:has(#portal:not(.hidden)) .brand-mark{background:transparent;box-shadow:none}
 body:has(#portal:not(.hidden)) .brand-lockup .muted{color:#577260}
 body:has(#portal:not(.hidden)) .footer{color:#687f6e}
 body:has(#portal:not(.hidden)) .footer a{color:#326b4c}
@@ -114,60 +114,26 @@ body:has(#portal:not(.hidden)) .doc-version{background:#e8f3e9;color:#315e43}
 @media(max-width:700px){body:has(#portal:not(.hidden)) .wrap{padding:0 12px calc(96px + env(safe-area-inset-bottom))}body:has(#portal:not(.hidden)) .top{margin:0 -12px;padding:12px}#portal .beta{margin-top:12px}#portal .nav{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:30;margin:0;padding:7px 9px calc(7px + env(safe-area-inset-bottom));border-top:1px solid #d5e5d8;border-bottom:0;background:#fff;box-shadow:0 -8px 20px #284d3b1e}#portal .nav button{min-width:78px;max-width:140px;min-height:45px;white-space:normal;text-align:center;font-size:12px}#portal .nav button.on{background:#eef5ef}#portal .hero{align-items:flex-start;flex-direction:column;padding:7px 0 17px}#portal .hero h1{font-size:24px}#portal .hero .btn{width:100%}#portal .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px 4px}#portal .kpi{padding:5px 11px}#portal .overview-columns .section{min-height:0}#portal .view>.card{padding:16px}#portal #messages>.card>.two{grid-template-columns:1fr}}
 @media(max-width:360px){#portal .kpi b{font-size:24px}}
 
-/* Variante approvata: verde notte, come l'anteprima 1 mostrata dal paziente. */
-body:has(#portal:not(.hidden)){background:#14231b;color:#e7eee7}
-body:has(#portal:not(.hidden)) .top{background:#18291f;border-bottom-color:#3c5843}
-body:has(#portal:not(.hidden)) .brand,body:has(#portal:not(.hidden)) .brand span{color:#e7eee7}
-body:has(#portal:not(.hidden)) .brand-lockup .muted,body:has(#portal:not(.hidden)) .footer{color:#b9cdbd}
-body:has(#portal:not(.hidden)) .brand-mark{background:#304d39;color:#f3f7f1}
-#portal{color:#e7eee7}
-#portal .nav{background:#18291f;border-color:#3e5b46}
-#portal .nav button{color:#c6d8c8}
-#portal .nav button:hover,#portal .nav button.on{background:#294332;color:#fff;border-bottom-color:#91bd98}
-#portal .hero{color:#e8f2e8;border-bottom-color:#54765a}
-#portal .hero h1,#portal .hero p,#portal .hero .eyebrow{color:#e9f1e9}
-#portal .eyebrow{color:#b6d3bc}
-#portal .muted{color:#b8cbbd}
-#portal .kpis{background:#192c21;border:1px solid #395441;padding:16px;gap:10px}
-#portal .kpi{padding:13px 15px;background:#273c2e;border-left:3px solid #7da588;color:#cadccb;border-radius:5px;min-height:115px}
-#portal .kpi b{color:#f3f7f1}
-#portal .kpi-link small{color:#d5e4d5}
-#portal .kpi-link:hover{background:#31503a}
-#portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{background:#1f3226;border-color:#48654e;color:#e5eee5}
-#portal .overview-columns h3,#portal .card h2,#portal .card h3{color:#f0f5ed;border-color:#49664e}
-#portal .overview-columns .patient{border-bottom-color:#49634c;color:#ecf2e9}
-#portal .overview-columns .patient:hover{background:#294433}
-#portal .attention-section{border:1px solid #527059!important;border-top:4px solid #658e6f!important}
-#portal .attention-count{background:#a7333c;color:#fff;border:1px solid #d65a61;font-size:14px;font-weight:800}
-#portal .attention-section .priority-row{border-bottom-color:#4b654e;color:#edf3eb}
+/* Variante verde chiaro: superfici luminose e gerarchia clinica leggibile. */
+body:has(#portal:not(.hidden)){background:#edf4ee;color:#263e33}
+body:has(#portal:not(.hidden)) .top{background:#f8fbf8;border-bottom-color:#d2e4d5}
+#portal .nav{background:#f8fbf8}
+#portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{background:#fff;border-color:#d5e5d8}
+#portal .kpis{background:#dfeee2;border:1px solid #c7ddcc;gap:10px;padding:16px}
+#portal .kpi{background:#f8fbf8;border:1px solid #c8ddce;border-left:3px solid #74a782;border-radius:5px;min-height:110px;padding:13px 15px}
+#portal .attention-section{border:1px solid #d7e4d9!important;border-top:4px solid #b65858!important}
+#portal .attention-count{background:#b53843;color:#fff;border:1px solid #9c2531;font-size:14px;font-weight:800}
 #portal .attention-section .priority-row{grid-template-columns:minmax(120px,.85fr) minmax(180px,1.35fr) auto}
-#portal .priority-reason{background:#4b3d29;border-left-color:#d6a366;color:#f7e3c6}
-#portal .priority-reason.priority-red{background:#51332f;border-left-color:#e2a194;color:#f6dcd5}
-#portal .priority-actions .btn.secondary{background:#304638;color:#e1eee2;border:1px solid #83a38a}
-#portal .priority-actions .btn.secondary:hover{background:#3c5a46}
-#portal .patient,#portal .item,#portal .delivery-item,#portal .admin-panel,#portal .admin-metric,#portal .admin-entry-row{background:#243a2b;border-color:#4b6851;color:#e7eee7}
-#portal .patient:hover{background:#304b38}
-#portal .patient-main b,#portal .admin-page-head h1,#portal .admin-panel-head h2,#portal .admin-entry-main strong,#portal .admin-metric strong{color:#eaf3e9}
-#portal .admin-page-head p,#portal .admin-panel-head p,#portal .admin-metric small{color:#bfd1c1}
-#portal .btn{background:#467254;color:#fff}
-#portal .btn:hover{background:#538460}
-#portal .btn.secondary,#portal .patient-quick button{background:#304a37;color:#e3f0e3;border-color:#6c9174}
-#portal .btn.secondary:hover,#portal .patient-quick button:hover{background:#3a5b43}
-#portal .notice{background:#304936;color:#e3f0e3}
-#portal .field label{color:#d7e8d9}
-#portal .field input,#portal .field select,#portal .field textarea,#portal #patientSearch,#portal .delivery-tools input,#portal .delivery-tools select{background:#172a1e;border-color:#55715a;color:#f0f4ed}
-#portal .tabs button,#portal .delivery-chips button{background:#2d4935;color:#e3f0e3;border-color:#56735c}
-#portal .tabs button.on,#portal .delivery-chips button.on{background:#528361;color:#fff}
-#portal .msgbox,#portal .msg{background:#263d2e;border-color:#526f58;color:#eaf1e9}
-#portal .msg.mine{background:#365b41}
-#portal #appointments>.card>.two>div,#portal #messages>.card>.two>div,#portal #protocols .protocol-layout>div,#portal #therapy>.two>div:first-child,#portal #therapy>.two>div:nth-child(2),#portal #controls>.two>div,#portal #protocols .protocol-layout>div:first-child,#portal #protocols .protocol-layout>div:last-child{background:#243a2b;border-color:#4b6851}
-body:has(#portal:not(.hidden)) .workspace-switch label,body:has(#portal:not(.hidden)) .workspace-switch small{color:#c4d8c7}
-body:has(#portal:not(.hidden)) .workspace-switch select{background:#243a2b;color:#f0f5ed;border-color:#64856b}
-.patient-voice-welcome{background:#203529;color:#e6f1e6;border-color:#64856b}
-.patient-voice-welcome h2{color:#f0f5ed}.patient-voice-welcome p{color:#c2d5c3}
-.patient-voice-welcome .welcome-status{padding:9px 11px;border-radius:5px;background:#2b4533;color:#dcebdd;font-size:13px}
-.patient-voice-welcome .field label{display:block;color:#e1eee2;margin-bottom:6px}
-.patient-voice-welcome .field input{width:100%;padding:11px;background:#14271b;color:#f1f7f0;border:1px solid #709275;border-radius:5px}
+#portal .priority-reason.priority-red{background:#fff0ee;color:#823d35;border-left-color:#b9584e}
+.patient-voice-welcome .welcome-status{padding:9px 11px;border-radius:5px;background:#eaf4eb;color:#315d43;font-size:13px}
+.patient-voice-welcome .field label{display:block;margin-bottom:6px}
+.patient-voice-welcome .field input{width:100%;padding:11px;background:#fbfdfb;color:#284036;border:1px solid #ccdfcf;border-radius:5px}
 .patient-voice-welcome #patientVoiceOpen{margin-top:8px}
-@media(max-width:700px){#portal .nav{background:#1b2d22;border-color:#4b6851}#portal .nav button.on{background:#34533e}#portal .kpis{padding:13px;gap:9px}#portal .kpi{min-height:125px;padding:12px}}
+@media(max-width:700px){#portal .nav{background:#f8fbf8;border-color:#d5e5d8}#portal .kpis{padding:13px;gap:9px}#portal .kpi{min-height:120px;padding:12px}}
 @media(max-width:750px){#portal .attention-section .priority-row{grid-template-columns:minmax(90px,.72fr) minmax(130px,1.28fr);align-items:start}#portal .attention-section .priority-reason{grid-column:2;grid-row:1}#portal .attention-section .priority-actions{grid-column:1/-1;grid-row:2;flex-direction:row;justify-content:flex-end;flex-wrap:wrap}#portal .attention-count{white-space:normal;text-align:center}}
+
+/* Associazione ben visibile all'amministratore. */
+#portal #admin .admin-columns>.admin-panel:first-child{border:2px solid #83b396;box-shadow:0 10px 28px #2d64401a}
+#portal #admin #adminAssociationTitle{color:#24543a}
+#portal #admin .admin-association-form select{background:#fff;color:#263e33;border:1px solid #abcdb4}
+#portal #admin #adminAddLink{font-weight:850}
