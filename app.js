@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0';
 import { initVoiceCommands } from './voice-commands.js';
+import { calculateCha2ds2va, CHA2DS2_VA_SOURCE } from './clinical-scores.js';
 
 const PUBLIC_LEGAL_PARAMS=new URLSearchParams(location.search);
 const PUBLIC_LEGAL_MODE=PUBLIC_LEGAL_PARAMS.has('legal');
@@ -55,6 +56,7 @@ const healthLabel=s=>({green:'Bene',yellow:'Così così',red:'Non sto bene'})[s]
 const healthPill=s=>`<span class="pill health-pill ${['green','yellow','red'].includes(s)?s:'gray'}">${esc(healthLabel(s))}</span>`;
 const romeDay=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
 const romeDayAgo=n=>new Date(Date.parse(romeDay()+'T12:00:00Z')-n*86400000).toISOString().slice(0,10);
+function romeMidnight(day){const [y,m,d]=day.split('-').map(Number),wanted=Date.UTC(y,m-1,d),fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});let guess=wanted;for(let i=0;i<3;i++){const p=Object.fromEntries(fmt.formatToParts(new Date(guess)).map(x=>[x.type,x.value]));guess-=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-wanted;}return new Date(guess).toISOString();}
 const intakeState=s=>s==='taken'?'Assunto · confermato dal paziente':s==='skipped'?'Non assunto · indicato dal paziente':s==='unknown'?'Non ricordo · indicato dal paziente':'Non confermato';
 function intakeRows(meds,intakes,day){
   const recorded=new Map((intakes||[]).filter(x=>x.intake_date===day).map(x=>[x.medication_schedule_id,x]));
@@ -200,8 +202,17 @@ async function boot(){
   await loadPatients();
   if(me.role==='Administrator'){$('workspaceSwitch').classList.remove('hidden');setWorkspace('admin');}
   else{$('workspaceSwitch').classList.add('hidden');$('adminNav').classList.add('hidden');$('marcoDoctorNav').classList.add('hidden');$('testDoctorNav').classList.add('hidden');document.querySelector('[data-view="overview"]').click();}
-  if(!welcomeShown){welcomeShown=true;const dialog=$('patientVoiceWelcome');if(dialog?.showModal)dialog.showModal();else dialog?.setAttribute('open','');voiceController.startWelcomeFlow();}
   await Promise.all([loadOverview(),loadProtocols(),loadRequests(),loadDirectoryProfile()]);
+  const params=new URLSearchParams(location.search),patientId=params.get('patient'),tab=params.get('tab');
+  const linked=patients.some(p=>p.patient_id===patientId);
+  if(linked){
+    if(me.role==='Administrator'&&workspace!=='doctor')setWorkspace('doctor');
+    await document.querySelector('[data-view="patients"]').onclick();
+    await openPatient(patientId);
+    if(['summary','therapy','controls','chat','patientimports','reports','settings'].includes(tab))$('patientDetail').querySelector(`[data-tab="${tab}"]`)?.click();
+    history.replaceState(null,'',location.pathname);
+  } else if(patientId){history.replaceState(null,'',location.pathname);alert('Il paziente del collegamento non è assegnato al tuo account.');}
+  if(!linked&&!welcomeShown){welcomeShown=true;const dialog=$('patientVoiceWelcome');if(dialog?.showModal)dialog.showModal();else dialog?.setAttribute('open','');voiceController.startWelcomeFlow();}
 }
 
 const deliveryLabel={sent:'Accettata da FCM',failed:'Invio fallito',pending:'In coda',read:'Letta nell’app',unknown:'Registrata nell’app'};
@@ -485,17 +496,20 @@ async function loadOverview(){
   $('reportDay').textContent=romeDay();
   if(!ids.length){openSignals=[];$('attentionCount').textContent='0 segnalazioni';$('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';$('dailyReport').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
   const today=romeDay();
-  const [{data:todayCheckins,error:checkinError},{data:todayIntakes,error:intakeError}]=await Promise.all([
+  const tomorrow=new Date(Date.parse(today+'T12:00:00Z')+86400000).toISOString().slice(0,10),todayStart=romeMidnight(today),tomorrowStart=romeMidnight(tomorrow);
+  const [{data:todayCheckins,error:checkinError},{data:todayIntakes,error:intakeError},{data:todayMessages,error:messageError},{data:todayJournal,error:journalError}]=await Promise.all([
     sb.from('patient_daily_checkins').select('patient_id,status,submitted_at').in('patient_id',ids).eq('checkin_date',today),
-    sb.from('medication_intakes').select('patient_id,status,confirmed_at').in('patient_id',ids).eq('intake_date',today)
+    sb.from('medication_intakes').select('patient_id,status,confirmed_at').in('patient_id',ids).eq('intake_date',today),
+    sb.from('chat_messages').select('sender_id,recipient_id,sent_at').in('sender_id',[...ids,me.id]).in('recipient_id',[...ids,me.id]).gte('sent_at',todayStart).lt('sent_at',tomorrowStart).limit(2000),
+    sb.from('patient_journal_entries').select('patient_id,shared_with,shared_at').in('patient_id',ids).eq('shared_with',me.id).gte('shared_at',todayStart).lt('shared_at',tomorrowStart).limit(1000)
   ]);
-  $('dailyReport').innerHTML=checkinError||intakeError?`<div class="err">Report non disponibile: ${esc((checkinError||intakeError).message)}</div>`:
-    patients.map(patient=>{const checkin=(todayCheckins||[]).find(x=>x.patient_id===patient.patient_id),intakes=(todayIntakes||[]).filter(x=>x.patient_id===patient.patient_id);
-      if(!checkin&&!intakes.length)return '';
+  $('dailyReport').innerHTML=checkinError||intakeError||messageError||journalError?`<div class="err">Report non disponibile: ${esc((checkinError||intakeError||messageError||journalError).message)}</div>`:
+    patients.map(patient=>{const id=patient.patient_id,checkin=(todayCheckins||[]).find(x=>x.patient_id===id),intakes=(todayIntakes||[]).filter(x=>x.patient_id===id),messages=(todayMessages||[]).filter(x=>(x.sender_id===id&&x.recipient_id===me.id)||(x.sender_id===me.id&&x.recipient_id===id)).length,shared=(todayJournal||[]).filter(x=>x.patient_id===id).length;
+      if(!checkin&&!intakes.length&&!messages&&!shared)return '';
       const taken=intakes.filter(x=>x.status==='taken').length,skipped=intakes.filter(x=>x.status==='skipped').length,unknown=intakes.filter(x=>x.status==='unknown').length;
-      return `<div class="patient attention" data-id="${esc(patient.patient_id)}"><b>${esc(patient.profile?.full_name||'Paziente')}</b><div class="small muted">Check-in: ${esc(checkin?healthLabel(checkin.status):'non registrato')} · Terapie registrate: ${taken} assunte, ${skipped} non assunte, ${unknown} non ricordate</div></div>`;
+      return `<div class="patient attention daily-row" data-id="${esc(id)}"><div><b>${esc(patient.profile?.full_name||'Paziente')}</b><div class="small muted">${[checkin?'Check-in: '+healthLabel(checkin.status):'',intakes.length?`Terapie: ${taken} assunte, ${skipped} non assunte, ${unknown} non ricordate`:'',messages?`${messages} messaggi`:'',shared?`${shared} voci diario condivise`:''].filter(Boolean).map(esc).join(' · ')}</div></div><div class="daily-actions"><button type="button" class="btn secondary" data-report-action="summary">Apri scheda</button><button type="button" class="btn secondary" data-report-action="chat">Rispondi</button></div></div>`;
     }).filter(Boolean).join('')||'<p class="muted">Nessuna registrazione oggi.</p>';
-  document.querySelectorAll('#dailyReport [data-id]').forEach(x=>x.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(x.dataset.id)});
+  document.querySelectorAll('#dailyReport [data-report-action]').forEach(button=>button.onclick=async()=>{const id=button.closest('[data-id]')?.dataset.id;if(!id)return;document.querySelector('[data-view="patients"]').click();await openPatient(id);if(button.dataset.reportAction==='chat')document.querySelector('#patientDetail [data-tab="chat"]')?.click();});
   const [{data:signals,error:signalsError},{count:messagesCount,error:messagesError}]=await Promise.all([
     sb.from('care_signals').select('id,patient_id,kind,signal_date,status,created_at').eq('status','open').in('patient_id',ids).order('created_at',{ascending:false}).limit(100),
     sb.from('chat_messages').select('id',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).in('sender_id',ids).eq('is_read',false)
@@ -528,6 +542,7 @@ async function loadOverview(){
 }
 
 async function openPatient(id){
+  if(!patients.some(patient=>patient.patient_id===id))throw new Error('Paziente non assegnato al tuo account.');
   selected=id; const p=patients.find(x=>x.patient_id===id)?.profile;
   const[daily,meds,fu,msgs,setts,protos,imports,intakes,reports,procedure,conditions]=await Promise.all([
     sb.from('patient_daily_checkins').select('*').eq('patient_id',id).order('checkin_date',{ascending:false}).limit(14),
@@ -1019,7 +1034,26 @@ $('saveProto').onclick=async()=>{
   if(error)return out($('protoMsg'),error.message);out($('protoMsg'),'Protocollo salvato con '+plan.medication_plan.length+' farmaci e '+plan.followup_plan.length+' controlli.',true);resetProtocolEditor();await loadProtocols();
 };
 
-const voiceController=initVoiceCommands({$,sb,getPatients:()=>patients,getSelected:()=>selected,openPatient,romeDay,esc,getRole:()=>me?.role,preparePatientView:async()=>{if(me?.role==='Administrator'&&workspace!=='doctor')setWorkspace('doctor');},preparePage:async page=>{if(me?.role==='Administrator'&&page==='admin'&&workspace!=='admin')setWorkspace('admin');else if(me?.role==='Administrator'&&page!=='admin'&&workspace==='admin')setWorkspace('doctor');}});
+async function askClinical(question){
+  if(me?.role!=='Clinician')throw new Error('Ricerca riservata al medico approvato.');
+  const box=$('voiceClinicalResult');box.textContent='Medi cerca nelle fonti pubbliche…';
+  const {data,error}=await sb.functions.invoke('medi-clinician',{body:{question}});
+  if(error||data?.error){box.textContent='Ricerca non riuscita.';throw new Error(data?.error||error?.message||'Riprova più tardi.');}
+  const answer=String(data?.answer||'Nessuna risposta verificabile.');
+  box.innerHTML=`<div class="clinical-answer"><strong>Risposta di Medi</strong><p>${esc(answer).replace(/\n/g,'<br>')}</p><div class="clinical-sources"><strong>Fonti</strong>${(data?.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title||s.domain||'Apri fonte')} ↗</a>`).join('')||'<span>Nessuna fonte verificabile restituita.</span>'}</div><small>Ricerca generale: non inserire dati del paziente. Consulta il documento originale prima di ogni decisione.</small></div>`;
+  return answer;
+}
+function showScoreCalculator(){
+  const box=$('voiceScorePanel');box.classList.remove('hidden');
+  box.innerHTML=`<div class="score-head"><div><span class="eyebrow">CALCOLATORE CLINICO</span><h3>CHA₂DS₂-VA</h3><p>Rischio tromboembolico nella fibrillazione atriale. Inserisci solo dati verificati.</p></div><button type="button" id="closeScore" class="btn secondary">Chiudi</button></div><div class="score-grid"><label>Età (anni)<input id="scoreAge" type="number" min="18" max="120" inputmode="numeric" required></label>${[['scoreHeartFailure','Scompenso cardiaco'],['scoreHypertension','Ipertensione'],['scoreDiabetes','Diabete'],['scoreStroke','Pregresso ictus/TIA'],['scoreVascular','Vasculopatia']].map(([id,label])=>`<label>${label}<select id="${id}"><option value="">Scegli</option><option value="yes">Sì</option><option value="no">No</option></select></label>`).join('')}</div><button type="button" id="calculateScore" class="btn">Calcola score</button><div id="scoreResult" role="status" aria-live="polite"></div><p class="small muted">Il punteggio è un supporto alla valutazione, non una prescrizione. <a href="${CHA2DS2_VA_SOURCE}" target="_blank" rel="noopener noreferrer">Linee guida ESC 2024 ↗</a></p>`;
+  $('closeScore').onclick=()=>box.classList.add('hidden');
+  $('calculateScore').onclick=()=>{try{
+    const choice=id=>{const value=$(id).value;if(!value)throw new Error('Indica sì o no per tutti i fattori clinici.');return value==='yes';};
+    const result=calculateCha2ds2va({age:$('scoreAge').value,heartFailure:choice('scoreHeartFailure'),hypertension:choice('scoreHypertension'),diabetes:choice('scoreDiabetes'),stroke:choice('scoreStroke'),vascularDisease:choice('scoreVascular')});
+    $('scoreResult').innerHTML=`<div class="score-result"><strong>${result.total} punti</strong><span>Scompenso ${result.parts.scompenso} · Ipertensione ${result.parts.ipertensione} · Età ${result.parts.eta} · Diabete ${result.parts.diabete} · Ictus/TIA ${result.parts.ictusTIA} · Vasculopatia ${result.parts.vasculopatia}</span></div>`;
+  }catch(error){$('scoreResult').textContent=error.message||'Dati non validi.';}};
+}
+const voiceController=initVoiceCommands({$,sb,getPatients:()=>patients,getSelected:()=>selected,openPatient,romeDay,esc,getRole:()=>me?.role,askClinical,showScore:showScoreCalculator,preparePatientView:async()=>{if(me?.role==='Administrator'&&workspace!=='doctor')setWorkspace('doctor');},preparePage:async page=>{if(me?.role==='Administrator'&&page==='admin'&&workspace!=='admin')setWorkspace('admin');else if(me?.role==='Administrator'&&page!=='admin'&&workspace==='admin')setWorkspace('doctor');}});
 const welcome=$('patientVoiceWelcome');
 $('patientVoiceYes').onclick=()=>voiceController.answerWelcomeYes();
 $('patientVoiceNo').onclick=()=>voiceController.answerWelcomeNo();

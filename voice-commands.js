@@ -25,7 +25,7 @@ export function parseWelcomeAnswer(transcript) {
   return null;
 }
 
-export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient, romeDay, esc, getRole, preparePatientView, preparePage }) {
+export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient, romeDay, esc, getRole, preparePatientView, preparePage, askClinical, showScore }) {
   const toggle = $('voiceToggle'), panel = $('voicePanel'), listen = $('voiceListen');
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null, active = false, busy = false, timer = null, messageFlow = null, lookupName = false;
@@ -238,6 +238,15 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       const target=document.querySelector(`.nav button[data-view="${pages[intent.page]}"]`);
       if(!target||target.classList.contains('hidden'))return reply('Questa pagina non è disponibile nell’area selezionata.',aloud);
       await target.onclick();return reply(`Ho aperto ${intent.page}.`,aloud);
+    }
+    const clinicalQuestion=normalize(raw);
+    if(!intent.replacement && /\b(calcola|calcolo|score|punteggio)\b.*\b(score|punteggio|cha2ds2|chads|rischio ictus)\b/.test(clinicalQuestion)){
+      if(getRole()!=='Clinician')return reply('Il calcolo degli score è riservato al medico.',aloud);
+      showScore();return reply('Ho aperto il calcolatore CHA due DS due VA. Inserisci i parametri clinici verificati; non deduco i dati mancanti.',aloud);
+    }
+    if(!intent.replacement && /\b(protocoll[oi]|linee guida|composizion[ei]|nome commerciale|principio attivo|interazion[ei]|controindicazion[ei]|scheda tecnica|riassunto caratteristiche)\b/.test(clinicalQuestion)){
+      if(getRole()!=='Clinician')return reply('Queste ricerche sono riservate al medico approvato.',aloud);
+      const answer=await askClinical(raw);return reply(answer,aloud);
     }
     let patient = intent.messagePatient ? matchPatient(intent.messagePatient) : intent.patient ? matchPatient(intent.patient) : getPatients().find(x => x.patient_id === getSelected());
     if (!patient) return reply('Indica il nome del paziente assegnato: per esempio Medi apri paziente seguito dal nome.', aloud);

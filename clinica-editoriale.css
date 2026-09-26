@@ -179,4 +179,24 @@ body:has(#portal:not(.hidden)) .top{background:#f8fbf8;border-bottom-color:#d2e4
 #portal .therapy-patient{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:16px;border:1px solid #d5e5d8;background:#fff;color:#284b39;cursor:pointer}
 #portal .therapy-patient:hover{background:#f3f8f3}
 #portal #cancelMedEdit{margin-left:8px}
+#portal .daily-row{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:default}
+#portal .daily-row>div:first-child{min-width:0}
+#portal .daily-row .small{line-height:1.45;margin-top:5px}
+#portal .daily-actions{display:flex;gap:7px;flex-shrink:0}
+#portal .daily-actions button{padding:7px 10px;font-size:12px}
+.voice-clinical-result:not(:empty),.voice-score-panel:not(.hidden){margin:16px 0;padding:18px;border:1px solid #cfe2d2;border-radius:8px;background:#f7fbf7;color:#294436}
+.clinical-answer>strong,.clinical-sources>strong{display:block;color:#28573c;margin-bottom:8px}
+.clinical-answer p{line-height:1.6;white-space:normal;margin:0 0 16px}
+.clinical-answer small{display:block;margin-top:14px;color:#526d5b}
+.clinical-sources{display:flex;flex-direction:column;align-items:flex-start;gap:7px;border-top:1px solid #dbe9de;padding-top:13px}
+.clinical-sources a{color:#276047;text-decoration:underline;text-underline-offset:3px}
+.score-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.score-head h3{margin:4px 0 0;color:#294d39}
+.score-head p{margin:5px 0 15px;color:#4c6957}
+.score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:12px 0 16px}
+.score-grid label{display:flex;flex-direction:column;gap:5px;font-weight:650;color:#345642;font-size:13px}
+.score-grid input,.score-grid select{min-height:42px;padding:8px 10px;border:1px solid #c6decc;border-radius:5px;background:#fff;color:#243f2f}
+.score-result{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:14px 0;padding:12px;background:#e7f3e9;border-left:4px solid #4f946a}
+.score-result strong{font-size:20px;color:#28583f}
+@media(max-width:700px){#portal .daily-row{align-items:stretch;flex-direction:column}#portal .daily-actions{width:100%}#portal .daily-actions button{flex:1}.score-grid{grid-template-columns:1fr}}
 @media(max-width:700px){#portal .therapy-item{align-items:flex-start;flex-direction:column}#portal .therapy-actions{width:100%}}
