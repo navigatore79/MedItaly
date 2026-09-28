@@ -101,15 +101,20 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   async function decideWelcome(raw){
     clearWelcomeAudio();const run=++welcomeRun;welcomeStatus('Medi interpreta la risposta con Gemini…');
     $('patientVoiceYes').disabled=true;$('patientVoiceNo').disabled=true;
+    let requestTimer;
     try{
-      const {data,error}=await sb.functions.invoke('medi-page-command',{body:{stage:'welcome',utterance:raw}});
+      const {data,error}=await Promise.race([
+        sb.functions.invoke('medi-page-command',{body:{stage:'welcome',utterance:raw}}),
+        new Promise((_,reject)=>{requestTimer=setTimeout(()=>reject(Error('Gemini non ha risposto entro 35 secondi. Puoi riprovare oppure chiudere la finestra.')),35000);})
+      ]);
       if(run!==welcomeRun)return;
-      if(error||data?.error||!['ask_patient','go_home','clarify'].includes(data?.action))throw Error('Gemini non è disponibile. Riprova oppure chiudi la finestra.');
+      if(error?.context?.status===503)throw Error('Il servizio Gemini è temporaneamente indisponibile. Puoi riprovare oppure chiudere la finestra.');
+      if(error||data?.error||!['ask_patient','go_home','clarify'].includes(data?.action))throw Error('Non ho ricevuto una risposta valida da Gemini. Puoi riprovare oppure chiudere la finestra.');
       if(data.action==='go_home')return finishWelcomeNo();
       if(data.action==='ask_patient')return promptWelcome('name');
       welcomeStatus('Cerco un paziente? Rispondi sì oppure no.');
     }catch(error){if(run===welcomeRun)welcomeStatus(error.message);}
-    finally{$('patientVoiceYes').disabled=false;$('patientVoiceNo').disabled=false;}
+    finally{clearTimeout(requestTimer);$('patientVoiceYes').disabled=false;$('patientVoiceNo').disabled=false;}
   }
   async function openWelcomePatient(raw){
     const name=normalize(raw).replace(/^(?:medi\s+)?(?:apri\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/,'');
@@ -341,7 +346,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     try { recognition.start(); }
     catch (error) { stop(); status('Impossibile avviare il microfono: ' + (error.message || 'controlla il permesso del browser.')); }
   };
-  document.addEventListener('visibilitychange', () => { if (document.hidden){welcomeRun++;clearWelcomeAudio();stop();} });
+  document.addEventListener('visibilitychange', () => { if (document.hidden){clearWelcomeAudio();stop();} });
   $('logout').addEventListener('click', () => {stopWelcomeFlow();stop();});
   return {
     stop,
