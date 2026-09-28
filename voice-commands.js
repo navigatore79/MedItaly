@@ -30,6 +30,37 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null, active = false, busy = false, timer = null, messageFlow = null, lookupName = false;
   let welcomeStage = null, welcomeRecognition = null, welcomeTimer = null, welcomeSpeechTimer = null, welcomeDeadline = 0, welcomeRun = 0;
+  let voiceContext=null,voiceSource=null,voicePlaybackResolve=null;
+  const voiceClips=new Map();
+  function cancelGeminiVoice(){
+    if(voiceSource){voiceSource.onended=null;try{voiceSource.stop();}catch{}voiceSource=null;}
+    if(voicePlaybackResolve){const done=voicePlaybackResolve;voicePlaybackResolve=null;done();}
+  }
+  async function speakGeminiWelcome(stage,run){
+    const Context=window.AudioContext||window.webkitAudioContext;
+    if(!Context)throw Error('Riproduzione audio non disponibile in questo browser.');
+    voiceContext ||= new Context();
+    if(voiceContext.state==='suspended'){welcomeStatus('Premi Attiva ascolto per avviare la voce di Medi se non parte automaticamente.');await voiceContext.resume();}
+    if(run!==welcomeRun||document.hidden)return;
+    const phrase=stage==='decision'?'welcome':'patient_name';
+    let buffer=voiceClips.get(phrase);
+    if(!buffer&&phrase==='welcome'){
+      try{const response=await fetch('./medi-saluto.wav');if(response.ok){buffer=await voiceContext.decodeAudioData(await response.arrayBuffer());voiceClips.set(phrase,buffer);}}catch{}
+    }
+    if(!buffer){
+      const {data,error}=await sb.functions.invoke('medi-voice',{body:{phrase}});
+      if(error||!data?.audio)throw Error('Voce Gemini non disponibile. Usa i pulsanti oppure Attiva ascolto.');
+      const bytes=Uint8Array.from(atob(data.audio),c=>c.charCodeAt(0));
+      buffer=await voiceContext.decodeAudioData(bytes.buffer);voiceClips.set(phrase,buffer);
+    }
+    if(run!==welcomeRun||document.hidden)return;
+    await new Promise((resolve,reject)=>{
+      cancelGeminiVoice();voicePlaybackResolve=resolve;voiceSource=voiceContext.createBufferSource();
+      voiceSource.buffer=buffer;voiceSource.connect(voiceContext.destination);
+      voiceSource.onended=()=>{voiceSource=null;voicePlaybackResolve=null;resolve();};
+      try{voiceSource.start();}catch(error){voiceSource=null;voicePlaybackResolve=null;reject(error);}
+    });
+  }
   const status = message => { $('voiceResult').textContent = message; };
   function renderState(state = 'idle') {
     panel.dataset.state = state;
@@ -87,7 +118,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     return matches[0];
   }
   function clearWelcomeAudio() {
-    clearTimeout(welcomeTimer);clearTimeout(welcomeSpeechTimer);
+    clearTimeout(welcomeTimer);clearTimeout(welcomeSpeechTimer);cancelGeminiVoice();
     if(welcomeRecognition){const old=welcomeRecognition;welcomeRecognition=null;try{old.abort();}catch{}}
     if('speechSynthesis' in window)speechSynthesis.cancel();
   }
@@ -156,13 +187,18 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     $('patientVoiceWelcomeTitle').textContent=stage==='decision'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente';
     $('patientVoiceWelcomeHelp').textContent=stage==='decision'?'Dopo la domanda Medi ascolta per 4 secondi. «Sì» apre la ricerca; «no» chiude Medi e apre la Panoramica.':'Medi ascolta nome e cognome per 4 secondi. Puoi anche inserirli nel campo.';
     $('patientVoiceNameEntry').classList.toggle('hidden',stage!=='name');$('patientVoiceYes').classList.toggle('hidden',stage==='name');
-    welcomeStatus('Medi sta ponendo la domanda…');
-    if(!('speechSynthesis' in window)){listenWelcomeWindow(run);return;}
-    let started=false;const begin=()=>{if(started||run!==welcomeRun)return;started=true;listenWelcomeWindow(run);};
-    const prompt=stage==='decision'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente da aprire.';
-    try{const utterance=new SpeechSynthesisUtterance(prompt);utterance.lang='it-IT';utterance.rate=1;utterance.onend=begin;utterance.onerror=begin;speechSynthesis.speak(utterance);welcomeSpeechTimer=setTimeout(()=>{if(run===welcomeRun){speechSynthesis.cancel();begin();}},5000);}
-    catch{begin();}
+    welcomeStatus('Preparazione della voce Gemini…');
+    let speechExpired=false;
+    welcomeSpeechTimer=setTimeout(()=>{if(run===welcomeRun){speechExpired=true;welcomeRun++;cancelGeminiVoice();welcomeStatus('La voce Gemini tarda a rispondere. Usa i pulsanti oppure Attiva ascolto.');}},25000);
+    speakGeminiWelcome(stage,run).then(()=>{
+      if(run!==welcomeRun||speechExpired)return;
+      clearTimeout(welcomeSpeechTimer);listenWelcomeWindow(run);
+    }).catch(error=>{
+      if(run!==welcomeRun||speechExpired)return;
+      clearTimeout(welcomeSpeechTimer);welcomeStatus(error.message||'Voce Gemini non disponibile. Usa i pulsanti oppure Attiva ascolto.');
+    });
   }
+
   function makeDraft(patient, medication, proposed) {
     const box = $('voiceDraft');
     box.innerHTML = `<div class="voice-review"><h3>Verifica sostituzione terapia</h3><p>La voce ha proposto di sospendere <strong>${esc(medication.name)}</strong> e inserire <strong>${esc(proposed.newName)}</strong> per <strong>${esc(patient.profile?.full_name || 'il paziente')}</strong>. Nessuna modifica è stata ancora salvata.</p>
@@ -353,7 +389,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     startWelcomeFlow(){if(['Clinician','Administrator'].includes(getRole()))promptWelcome('decision');},
     answerWelcomeYes(){if(welcomeStage==='decision')return decideWelcome('sì');},
     answerWelcomeNo(){return decideWelcome('no');},
-    retryWelcome(){if(welcomeStage){const stage=welcomeStage;stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
+    retryWelcome(){if(welcomeStage){const stage=welcomeStage;if(voiceContext?.state==='suspended'){promptWelcome(stage);return;}stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
     openWelcomeName:openWelcomePatient,
     stopWelcomeFlow,
     startPatientLookup(){
