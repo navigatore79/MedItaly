@@ -341,7 +341,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     try { recognition.start(); }
     catch (error) { stop(); status('Impossibile avviare il microfono: ' + (error.message || 'controlla il permesso del browser.')); }
   };
-  document.addEventListener('visibilitychange', () => { if (document.hidden){stopWelcomeFlow();stop();} });
+  document.addEventListener('visibilitychange', () => { if (document.hidden){welcomeRun++;clearWelcomeAudio();stop();} });
   $('logout').addEventListener('click', () => {stopWelcomeFlow();stop();});
   return {
     stop,
