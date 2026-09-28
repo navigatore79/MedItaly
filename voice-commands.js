@@ -4,7 +4,7 @@ const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300
 
 export function parseVoiceIntent(transcript) {
   const text = normalize(transcript).replace(/^medi\s+/, '');
-  const open = text.match(/\bapri\s+(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+(.+?)(?=\s+e poi\b|\s+(?:elencami|mostrami|leggimi|modifica|togli)\b|$)/);
+  const open = text.match(/\b(?:apri|cerca)\s+(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+(.+?)(?=\s+e poi\b|\s+(?:elencami|mostrami|leggimi|modifica|togli)\b|$)/);
   const message = text.match(/\b(?:invia|scrivi|prepara)\s+(?:un\s+)?messaggio\s+(?:al\s+)?paziente\s+(.+?)(?=\s+e\s+(?:(?:poi\s+)?(?:seleziona|apri|mostrami))\b|$)/);
   const replace = text.match(/\b(?:togli|sospendi)\s+(.+?)\s+e\s+(?:inserisci|aggiungi)\s+(.+?)(?:\s+(?:per\s+)?(una|due|tre|quattro|cinque|sei|\d+)\s+volte?\s+al\s+giorno)?$/);
   const number = {una:1,due:2,tre:3,quattro:4,cinque:5,sei:6};
@@ -19,9 +19,11 @@ export function parseVoiceIntent(transcript) {
 }
 
 export function parseWelcomeAnswer(transcript) {
-  const words = normalize(transcript).replace(/^medi\s+/, '').split(' ');
-  if (words.some(word => ['si','certo','va','okay','ok'].includes(word))) return 'yes';
-  if (words.some(word => ['no','negativo'].includes(word))) return 'no';
+  const text = normalize(transcript).replace(/^(?:hei |hey |ehi )?medi\s+/, '')
+    .replace(/^(?:per favore|grazie)\s+/, '').replace(/\s+(?:per favore|grazie)$/, '');
+  // Match the whole answer: never infer consent from one word in a longer sentence.
+  if (/^(?:no(?: grazie)?|no non ora|non ora|non adesso|negativo|annulla|chiudi(?: medi| la finestra)?|(?:vai|torna)(?: alla| in)? (?:home|panoramica)|home|panoramica|non (?:cercare|aprire)(?: (?:un|il) paziente)?)$/.test(text)) return 'no';
+  if (/^(?:si(?: grazie)?|certo|certamente|va bene|ok|okay|si (?:certo|va bene)|(?:cerca|cerchiamo)(?: (?:un|il) paziente)?)$/.test(text)) return 'yes';
   return null;
 }
 
@@ -49,10 +51,17 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       try{const response=await fetch('./medi-saluto.wav');if(response.ok){buffer=await voiceContext.decodeAudioData(await response.arrayBuffer());voiceClips.set(phrase,buffer);}}catch{}
     }
     if(!buffer){
-      const {data,error}=await sb.functions.invoke('medi-voice',{body:{phrase}});
-      if(error||!data?.audio)throw Error('Voce Gemini non disponibile. Usa i pulsanti oppure Attiva ascolto.');
-      const bytes=Uint8Array.from(atob(data.audio),c=>c.charCodeAt(0));
-      buffer=await voiceContext.decodeAudioData(bytes.buffer);voiceClips.set(phrase,buffer);
+      // Fixed prompts must not make live Gemini requests.
+      if(!('speechSynthesis' in window))throw Error('Usa i pulsanti oppure scrivi nome e cognome.');
+      await new Promise(resolve=>{
+        const utterance=new SpeechSynthesisUtterance(phrase==='welcome'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente');
+        utterance.lang='it-IT';utterance.rate=1;
+        const italian=speechSynthesis.getVoices().find(voice=>voice.lang==='it-IT');
+        if(italian)utterance.voice=italian;
+        utterance.onend=resolve;utterance.onerror=resolve;
+        speechSynthesis.speak(utterance);
+      });
+      return;
     }
     if(run!==welcomeRun||document.hidden)return;
     await new Promise((resolve,reject)=>{
@@ -131,6 +140,9 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     await preparePage('overview');await document.querySelector('[data-view="overview"]')?.onclick();
   }
   async function decideWelcome(raw){
+    const localAnswer=parseWelcomeAnswer(raw);
+    if(localAnswer==='no')return finishWelcomeNo();
+    if(localAnswer==='yes')return promptWelcome('name');
     if(welcomePending)return;
     welcomePending=true;const request=++welcomeRequest;++welcomeRun;clearWelcomeAudio();welcomeStatus('Medi interpreta la risposta con Gemini…');
     $('patientVoiceRetry').disabled=true;
@@ -151,7 +163,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     finally{clearTimeout(requestTimer);if(request===welcomeRequest){welcomePending=false;for(const id of ['patientVoiceYes','patientVoiceNo','patientVoiceRetry'])$(id).disabled=false;}}
   }
   async function openWelcomePatient(raw){
-    const name=normalize(raw).replace(/^(?:medi\s+)?(?:apri\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/,'');
+    const name=normalize(raw).replace(/^(?:medi\s+)?(?:(?:apri|cerca)\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/,'');
     if(name.split(' ').filter(Boolean).length<2){welcomeStatus('Indica nome e cognome. Puoi ripetere l’ascolto o scriverli nel campo.');clearWelcomeAudio();return;}
     try{
       const patient=matchPatient(name);
@@ -174,7 +186,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       const rec=new Recognition();welcomeRecognition=rec;rec.lang='it-IT';rec.continuous=false;rec.interimResults=false;
       rec.onstart=()=>{if(run!==welcomeRun)return;if(!welcomeDeadline)welcomeDeadline=Date.now()+4000;welcomeStatus(welcomeStage==='decision'?'Ascolto per 4 secondi: rispondi «sì» oppure «no».':'Ascolto per 4 secondi: dimmi nome e cognome.');clearTimeout(welcomeTimer);welcomeTimer=setTimeout(()=>{closing=true;try{rec.stop();}catch{finish();}setTimeout(()=>{if(run===welcomeRun&&welcomeRecognition===rec)finish();},600);},Math.max(0,welcomeDeadline-Date.now()));};
       rec.onresult=event=>{if(run!==welcomeRun)return;heard=true;const raw=event.results[event.resultIndex][0].transcript;$('voiceHeard').textContent=raw;
-        if(welcomeStage==='decision')return decideWelcome(raw);
+        if(welcomeStage==='decision'||parseWelcomeAnswer(raw)==='no')return decideWelcome(raw);
         else openWelcomePatient(raw);
       };
       rec.onerror=event=>{if(run!==welcomeRun||event.error==='aborted'||event.error==='no-speech')return;
@@ -190,15 +202,15 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     $('patientVoiceWelcomeTitle').textContent=stage==='decision'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente';
     $('patientVoiceWelcomeHelp').textContent=stage==='decision'?'Dopo la domanda Medi ascolta per 4 secondi. «Sì» apre la ricerca; «no» chiude Medi e apre la Panoramica.':'Medi ascolta nome e cognome per 4 secondi. Puoi anche inserirli nel campo.';
     $('patientVoiceNameEntry').classList.toggle('hidden',stage!=='name');$('patientVoiceYes').classList.toggle('hidden',stage==='name');
-    welcomeStatus('Preparazione della voce Gemini…');
+    welcomeStatus('Preparazione della voce di Medi…');
     let speechExpired=false;
-    welcomeSpeechTimer=setTimeout(()=>{if(run===welcomeRun){speechExpired=true;welcomeRun++;cancelGeminiVoice();welcomeStatus('La voce Gemini tarda a rispondere. Usa i pulsanti oppure Attiva ascolto.');}},25000);
+    welcomeSpeechTimer=setTimeout(()=>{if(run===welcomeRun){speechExpired=true;welcomeRun++;cancelGeminiVoice();welcomeStatus('La voce tarda a partire. Usa i pulsanti oppure Attiva ascolto.');}},25000);
     speakGeminiWelcome(stage,run).then(()=>{
       if(run!==welcomeRun||speechExpired)return;
       clearTimeout(welcomeSpeechTimer);listenWelcomeWindow(run);
     }).catch(error=>{
       if(run!==welcomeRun||speechExpired)return;
-      clearTimeout(welcomeSpeechTimer);welcomeStatus(error.message||'Voce Gemini non disponibile. Usa i pulsanti oppure Attiva ascolto.');
+      clearTimeout(welcomeSpeechTimer);welcomeStatus(error.message||'Voce non disponibile. Usa i pulsanti oppure Attiva ascolto.');
     });
   }
 
@@ -280,8 +292,18 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   }
   async function execute(raw, aloud = false) {
     if (!['Clinician','Administrator'].includes(getRole())) return reply('Sessione non autorizzata.', aloud);
+    const simple=normalize(raw).replace(/^(?:hei |hey |ehi )?medi\s+/, '');
+    if(!messageFlow && /^(?:chiudi(?: medi| la finestra)?|annulla)$/.test(simple)){
+      stop();lookupName=false;panel.classList.add('hidden');toggle.setAttribute('aria-expanded','false');return;
+    }
+    if(!messageFlow && /^(?:(?:vai|torna)(?: alla| in)? )?(?:home|panoramica)$/.test(simple)){
+      lookupName=false;await preparePage('overview');await document.querySelector('[data-view="overview"]')?.onclick();return reply('Ho aperto la Panoramica.',aloud);
+    }
+    if(!messageFlow && /^(?:cerca|cerchiamo)(?: (?:un|il) paziente)?$/.test(simple)){
+      lookupName=true;return reply('Dimmi nome e cognome del paziente.',aloud);
+    }
     if (lookupName) {
-      const name = normalize(raw).replace(/^(?:medi\s+)?(?:apri\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/, '');
+      const name = normalize(raw).replace(/^(?:medi\s+)?(?:(?:apri|cerca)\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/, '');
       const patient = matchPatient(name);
       await preparePatientView();
       const nav=document.querySelector('[data-view="patients"]');
