@@ -93,7 +93,24 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   }
   function stopWelcomeFlow(){welcomeRun++;welcomeStage=null;clearWelcomeAudio();}
   function welcomeStatus(message){$('patientVoiceStatus').textContent=message;}
-  function finishWelcomeNo(){stopWelcomeFlow();stop();$('patientVoiceWelcome').close();}
+  async function finishWelcomeNo(){
+    stopWelcomeFlow();stop();messageFlow=null;$('voiceDraft').innerHTML='';
+    $('patientVoiceWelcome').close();panel.classList.add('hidden');toggle.setAttribute('aria-expanded','false');
+    await preparePage('overview');await document.querySelector('[data-view="overview"]')?.onclick();
+  }
+  async function decideWelcome(raw){
+    clearWelcomeAudio();const run=++welcomeRun;welcomeStatus('Medi interpreta la risposta con Gemini…');
+    $('patientVoiceYes').disabled=true;$('patientVoiceNo').disabled=true;
+    try{
+      const {data,error}=await sb.functions.invoke('medi-page-command',{body:{stage:'welcome',utterance:raw}});
+      if(run!==welcomeRun)return;
+      if(error||data?.error||!['ask_patient','go_home','clarify'].includes(data?.action))throw Error('Gemini non è disponibile. Riprova oppure chiudi la finestra.');
+      if(data.action==='go_home')return finishWelcomeNo();
+      if(data.action==='ask_patient')return promptWelcome('name');
+      welcomeStatus('Cerco un paziente? Rispondi sì oppure no.');
+    }catch(error){if(run===welcomeRun)welcomeStatus(error.message);}
+    finally{$('patientVoiceYes').disabled=false;$('patientVoiceNo').disabled=false;}
+  }
   async function openWelcomePatient(raw){
     const name=normalize(raw).replace(/^(?:medi\s+)?(?:apri\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/,'');
     if(name.split(' ').filter(Boolean).length<2){welcomeStatus('Indica nome e cognome. Puoi ripetere l’ascolto o scriverli nel campo.');clearWelcomeAudio();return;}
@@ -118,7 +135,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
       const rec=new Recognition();welcomeRecognition=rec;rec.lang='it-IT';rec.continuous=false;rec.interimResults=false;
       rec.onstart=()=>{if(run!==welcomeRun)return;if(!welcomeDeadline)welcomeDeadline=Date.now()+4000;welcomeStatus(welcomeStage==='decision'?'Ascolto per 4 secondi: rispondi «sì» oppure «no».':'Ascolto per 4 secondi: dimmi nome e cognome.');clearTimeout(welcomeTimer);welcomeTimer=setTimeout(()=>{closing=true;try{rec.stop();}catch{finish();}setTimeout(()=>{if(run===welcomeRun&&welcomeRecognition===rec)finish();},600);},Math.max(0,welcomeDeadline-Date.now()));};
       rec.onresult=event=>{if(run!==welcomeRun)return;heard=true;const raw=event.results[event.resultIndex][0].transcript;$('voiceHeard').textContent=raw;
-        if(welcomeStage==='decision'){const answer=parseWelcomeAnswer(raw);if(answer==='yes')return promptWelcome('name');if(answer==='no')return finishWelcomeNo();heard=false;welcomeStatus('Risposta non chiara. Di’ «sì» o «no», oppure usa i pulsanti.');}
+        if(welcomeStage==='decision')return decideWelcome(raw);
         else openWelcomePatient(raw);
       };
       rec.onerror=event=>{if(run!==welcomeRun||event.error==='aborted'||event.error==='no-speech')return;
@@ -131,13 +148,13 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   }
   function promptWelcome(stage){
     stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;const run=welcomeRun;
-    $('patientVoiceWelcomeTitle').textContent=stage==='decision'?'Vuoi richiamare la scheda di un paziente?':'Dimmi nome e cognome del paziente';
-    $('patientVoiceWelcomeHelp').textContent=stage==='decision'?'Dopo la domanda Medi ascolta per 4 secondi. «Sì» apre la ricerca; «no» ferma tutto.':'Medi ascolta nome e cognome per 4 secondi. Puoi anche inserirli nel campo.';
+    $('patientVoiceWelcomeTitle').textContent=stage==='decision'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente';
+    $('patientVoiceWelcomeHelp').textContent=stage==='decision'?'Dopo la domanda Medi ascolta per 4 secondi. «Sì» apre la ricerca; «no» chiude Medi e apre la Panoramica.':'Medi ascolta nome e cognome per 4 secondi. Puoi anche inserirli nel campo.';
     $('patientVoiceNameEntry').classList.toggle('hidden',stage!=='name');$('patientVoiceYes').classList.toggle('hidden',stage==='name');
     welcomeStatus('Medi sta ponendo la domanda…');
     if(!('speechSynthesis' in window)){listenWelcomeWindow(run);return;}
     let started=false;const begin=()=>{if(started||run!==welcomeRun)return;started=true;listenWelcomeWindow(run);};
-    const prompt=stage==='decision'?'Vuoi che apra la scheda di un paziente? Rispondi sì o no.':'Dimmi nome e cognome del paziente da aprire.';
+    const prompt=stage==='decision'?'Ciao dottore, cerco un paziente?':'Dimmi nome e cognome del paziente da aprire.';
     try{const utterance=new SpeechSynthesisUtterance(prompt);utterance.lang='it-IT';utterance.rate=1;utterance.onend=begin;utterance.onerror=begin;speechSynthesis.speak(utterance);welcomeSpeechTimer=setTimeout(()=>{if(run===welcomeRun){speechSynthesis.cancel();begin();}},5000);}
     catch{begin();}
   }
@@ -329,8 +346,8 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   return {
     stop,
     startWelcomeFlow(){if(['Clinician','Administrator'].includes(getRole()))promptWelcome('decision');},
-    answerWelcomeYes(){if(welcomeStage==='decision')promptWelcome('name');},
-    answerWelcomeNo:finishWelcomeNo,
+    answerWelcomeYes(){if(welcomeStage==='decision')return decideWelcome('sì');},
+    answerWelcomeNo(){return decideWelcome('no');},
     retryWelcome(){if(welcomeStage){const stage=welcomeStage;stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
     openWelcomeName:openWelcomePatient,
     stopWelcomeFlow,
