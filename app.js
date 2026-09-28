@@ -1,6 +1,6 @@
 import { initMediGemini } from './medi-gemini.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0';
-import { initVoiceCommands } from './voice-commands.js';
+import { initVoiceCommands } from './voice-commands.js?v=20260928-1358';
 import { calculateCha2ds2va, CHA2DS2_VA_SOURCE } from './clinical-scores.js';
 
 const PUBLIC_LEGAL_PARAMS=new URLSearchParams(location.search);

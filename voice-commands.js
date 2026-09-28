@@ -30,6 +30,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null, active = false, busy = false, timer = null, messageFlow = null, lookupName = false;
   let welcomeStage = null, welcomeRecognition = null, welcomeTimer = null, welcomeSpeechTimer = null, welcomeDeadline = 0, welcomeRun = 0;
+  let welcomePending=false,welcomeRequest=0;
   let voiceContext=null,voiceSource=null,voicePlaybackResolve=null;
   const voiceClips=new Map();
   function cancelGeminiVoice(){
@@ -122,7 +123,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     if(welcomeRecognition){const old=welcomeRecognition;welcomeRecognition=null;try{old.abort();}catch{}}
     if('speechSynthesis' in window)speechSynthesis.cancel();
   }
-  function stopWelcomeFlow(){welcomeRun++;welcomeStage=null;clearWelcomeAudio();}
+  function stopWelcomeFlow(){welcomeRun++;welcomeRequest++;welcomePending=false;welcomeStage=null;clearWelcomeAudio();for(const id of ['patientVoiceYes','patientVoiceNo','patientVoiceRetry'])$(id).disabled=false;}
   function welcomeStatus(message){$('patientVoiceStatus').textContent=message;}
   async function finishWelcomeNo(){
     stopWelcomeFlow();stop();messageFlow=null;$('voiceDraft').innerHTML='';
@@ -130,22 +131,23 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     await preparePage('overview');await document.querySelector('[data-view="overview"]')?.onclick();
   }
   async function decideWelcome(raw){
-    clearWelcomeAudio();const run=++welcomeRun;welcomeStatus('Medi interpreta la risposta con Gemini…');
-    $('patientVoiceYes').disabled=true;$('patientVoiceNo').disabled=true;
+    if(welcomePending)return;
+    welcomePending=true;const request=++welcomeRequest;++welcomeRun;clearWelcomeAudio();welcomeStatus('Medi interpreta la risposta con Gemini…');
+    for(const id of ['patientVoiceYes','patientVoiceNo','patientVoiceRetry'])$(id).disabled=true;
     let requestTimer;
     try{
       const {data,error}=await Promise.race([
         sb.functions.invoke('medi-page-command',{body:{stage:'welcome',utterance:raw}}),
         new Promise((_,reject)=>{requestTimer=setTimeout(()=>reject(Error('Gemini non ha risposto entro 35 secondi. Puoi riprovare oppure chiudere la finestra.')),35000);})
       ]);
-      if(run!==welcomeRun)return;
+      if(request!==welcomeRequest)return;
       if(error?.context?.status===503)throw Error('Il servizio Gemini è temporaneamente indisponibile. Puoi riprovare oppure chiudere la finestra.');
       if(error||data?.error||!['ask_patient','go_home','clarify'].includes(data?.action))throw Error('Non ho ricevuto una risposta valida da Gemini. Puoi riprovare oppure chiudere la finestra.');
       if(data.action==='go_home')return finishWelcomeNo();
       if(data.action==='ask_patient')return promptWelcome('name');
       welcomeStatus('Cerco un paziente? Rispondi sì oppure no.');
-    }catch(error){if(run===welcomeRun)welcomeStatus(error.message);}
-    finally{clearTimeout(requestTimer);$('patientVoiceYes').disabled=false;$('patientVoiceNo').disabled=false;}
+    }catch(error){if(request===welcomeRequest)welcomeStatus(error.message);}
+    finally{clearTimeout(requestTimer);if(request===welcomeRequest){welcomePending=false;for(const id of ['patientVoiceYes','patientVoiceNo','patientVoiceRetry'])$(id).disabled=false;}}
   }
   async function openWelcomePatient(raw){
     const name=normalize(raw).replace(/^(?:medi\s+)?(?:apri\s+)?(?:(?:la\s+)?scheda\s+(?:del\s+)?|il\s+)?paziente\s+/,'');
@@ -389,7 +391,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
     startWelcomeFlow(){if(['Clinician','Administrator'].includes(getRole()))promptWelcome('decision');},
     answerWelcomeYes(){if(welcomeStage==='decision')return decideWelcome('sì');},
     answerWelcomeNo(){return decideWelcome('no');},
-    retryWelcome(){if(welcomeStage){const stage=welcomeStage;if(voiceContext?.state==='suspended'){promptWelcome(stage);return;}stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
+    retryWelcome(){if(welcomePending)return;if(welcomeStage){const stage=welcomeStage;if(voiceContext?.state==='suspended'){promptWelcome(stage);return;}stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
     openWelcomeName:openWelcomePatient,
     stopWelcomeFlow,
     startPatientLookup(){
