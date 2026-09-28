@@ -1,3 +1,4 @@
+import { initMediGemini } from './medi-gemini.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0';
 import { initVoiceCommands } from './voice-commands.js';
 import { calculateCha2ds2va, CHA2DS2_VA_SOURCE } from './clinical-scores.js';
@@ -472,7 +473,8 @@ function renderPatients(){
   $('patientList').innerHTML=(patientLoadError?`<div class="err" role="alert">Impossibile caricare i pazienti: ${esc(patientLoadError)}</div>`:'')+visible.map(x=>
     '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(careAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Da valutare · '+careAlerts.get(x.patient_id).length+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
   ).join('')||(patientLoadError?'':patientFilter?'<p class="notice">Nessun paziente per questo indicatore.</p>':`<p class="notice">Nessun paziente assegnato all’account ${esc(me?.full_name||'attuale')}. La vista Medico dell’amministratore mostra soltanto i pazienti assegnati al suo account; gli altri medici hanno elenchi separati. Per creare un’associazione usa Amministrazione.</p>`);
-  document.querySelectorAll('.patient[data-id]').forEach(x=>x.onclick=()=>openPatient(x.dataset.id));
+  highlightPatient();
+  document.querySelectorAll('.patient[data-id]').forEach(x=>{x.tabIndex=0;x.onclick=()=>openPatient(x.dataset.id);x.onkeydown=e=>{if(e.target===x&&['Enter',' '].includes(e.key)){e.preventDefault();openPatient(x.dataset.id);}};});
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
 }
 
@@ -541,9 +543,18 @@ async function loadOverview(){
   document.querySelectorAll('.review-signal').forEach(button=>button.onclick=async e=>{e.stopPropagation();button.disabled=true;const {data,error}=await sb.rpc('review_care_signal',{p_signal_id:button.dataset.signal});if(error||!data){alert('Impossibile registrare la presa visione: '+(error?.message||'Accesso non autorizzato'));button.disabled=false;return;}loadOverview();});
 }
 
+let patientOpenRequest=0;
+function highlightPatient(){
+ document.querySelectorAll('#patientList .patient[data-id]').forEach(row=>{const active=row.dataset.id===selected;row.classList.toggle('is-selected',active);row.setAttribute('aria-current',String(active));});
+}
 async function openPatient(id){
   if(!patients.some(patient=>patient.patient_id===id))throw new Error('Paziente non assegnato al tuo account.');
-  selected=id; const p=patients.find(x=>x.patient_id===id)?.profile;
+  const request=++patientOpenRequest;
+  selected=id;highlightPatient();
+  const detail=$('patientDetail');detail.classList.remove('hidden');detail.setAttribute('aria-busy','true');
+  detail.innerHTML='<div class="card patient-loading" role="status">Apertura scheda paziente…</div>';
+  detail.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+  const p=patients.find(x=>x.patient_id===id)?.profile;
   const[daily,meds,fu,msgs,setts,protos,imports,intakes,reports,procedure,conditions]=await Promise.all([
     sb.from('patient_daily_checkins').select('*').eq('patient_id',id).order('checkin_date',{ascending:false}).limit(14),
     sb.from('medications').select('*,medication_schedules(*)').eq('patient_id',id).order('created_at',{ascending:false}),
@@ -557,11 +568,13 @@ async function openPatient(id){
     sb.from('patient_clinician_requests').select('performed_on,procedure_label').eq('patient_id',id).eq('clinician_id',(await sb.auth.getUser()).data.user.id).not('performed_on','is',null).order('created_at',{ascending:false}).limit(1).maybeSingle(),
     sb.from('patient_chronic_conditions').select('condition_codes,updated_at').eq('patient_id',id).maybeSingle()
   ]);
+  if(request!==patientOpenRequest)return;
+  detail.removeAttribute('aria-busy');
   const readErrors={summary:daily.error,therapy:meds.error||intakes.error,controls:fu.error,chat:msgs.error,patientimports:imports.error,reports:reports.error,settings:setts.error||protos.error};
   const readError=key=>readErrors[key]?`<div class="err" role="alert">Impossibile caricare la sezione: ${esc(readErrors[key].message)}</div>`:'';
   const latest=daily.data?.[0];
   $('patientDetail').innerHTML=`<div class="card">
-    <div class="row between"><div><h2>${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
+    <div class="row between patient-detail-heading"><div><span class="patient-open-label">SCHEDA PAZIENTE APERTA</span><h2 tabindex="-1" id="patientDetailTitle">${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
     <div id="patientIntakeAlert" role="status"></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="reports">Referti</button><button data-tab="settings">Protocollo</button></div>
     <div id="summary" class="tabp">${readError('summary')}<h3>Condizioni dichiarate dal paziente</h3>${conditions.error?`<div class="err">Informazioni non disponibili: ${esc(conditions.error.message)}</div>`:`<p class="muted">${esc((conditions.data?.condition_codes||[]).map(c=>({'diabetes_type_2':'Diabete di tipo 2',hypertension:'Ipertensione',copd:'BPCO',asthma:'Asma',heart_failure:'Scompenso cardiaco',ckd:'Malattia renale cronica'})[c]||c).join(' · ')||'Nessuna condizione dichiarata.')} · Informazione riferita dal paziente, da verificare.</p>`}<h3>Ultimi check-in</h3><div class="table-like">${(daily.data||[]).map(x=>'<div class="item"><div class="row">'+healthPill(x.status)+'<b>'+esc(x.checkin_date)+'</b></div><div class="small muted">'+esc((x.reasons||[]).join(', ')||x.note||'Nessun dettaglio')+'</div></div>').join('')||'<p class="muted">Nessun check-in.</p>'}</div></div>
@@ -573,6 +586,7 @@ async function openPatient(id){
     <div id="settings" class="tabp hidden">${readError('settings')}<h3>Livello di monitoraggio</h3><div class="two"><div><div class="field"><label>Protocollo</label><select id="patientProtocol"><option value="">Personalizzato</option>${(protos.data||[]).map(x=>'<option value="'+x.id+'" '+(setts.data?.protocol_id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('')}</select></div><div class="row"><button id="applyProto" class="btn secondary">Rivedi e applica</button><button id="openProtocols" class="btn secondary">Gestisci protocolli</button></div><div id="protocolReview" class="card hidden" style="margin-top:12px"></div><div class="quick-protocol-create"><label>Nuovo protocollo rapido</label><div class="row"><input id="patientNewProtocolName" placeholder="Nome del protocollo"><button id="createPatientProtocol" class="btn">Aggiungi</button></div><div class="small muted">Crea un modello base; potrai completarlo nella sezione Protocolli.</div></div></div><div><div class="field"><label>Ora check-in</label><input id="setTime" type="time" value="${esc((setts.data?.checkin_time||'09:00').slice(0,5))}"></div><div class="row"><label><input id="setYellow" type="checkbox" ${setts.data?.alert_on_yellow?'checked':''}> Evidenzia giallo</label><label><input id="setRed" type="checkbox" ${setts.data?.alert_on_red!==false?'checked':''}> Evidenzia rosso</label></div><button id="saveSettings" class="btn" style="margin-top:12px">Salva personalizzazione</button><div id="setMsg"></div></div></div></div>
   </div>`;
   $('patientDetail').classList.remove('hidden');
+  $('patientDetailTitle')?.focus({preventScroll:true});
   let patientIntakes=intakes.data||[];
   const paintIntakes=()=>{
     const day=$('intakeDate')?.value||romeDay();
@@ -1035,14 +1049,10 @@ $('saveProto').onclick=async()=>{
 };
 
 async function askClinical(question){
-  if(me?.role!=='Clinician')throw new Error('Ricerca riservata al medico approvato.');
-  const box=$('voiceClinicalResult');box.textContent='Medi cerca nelle fonti pubbliche…';
-  const {data,error}=await sb.functions.invoke('medi-clinician',{body:{question}});
-  if(error||data?.error){box.textContent='Ricerca non riuscita.';throw new Error(data?.error||error?.message||'Riprova più tardi.');}
-  const answer=String(data?.answer||'Nessuna risposta verificabile.');
-  box.innerHTML=`<div class="clinical-answer"><strong>Risposta di Medi</strong><p>${esc(answer).replace(/\n/g,'<br>')}</p><div class="clinical-sources"><strong>Fonti</strong>${(data?.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title||s.domain||'Apri fonte')} ↗</a>`).join('')||'<span>Nessuna fonte verificabile restituita.</span>'}</div><small>Ricerca generale: non inserire dati del paziente. Consulta il documento originale prima di ogni decisione.</small></div>`;
-  return answer;
+  return mediGemini.ask(question);
 }
+const mediGemini=initMediGemini({sb,getRole:()=>me?.role});
+
 function showScoreCalculator(){
   const box=$('voiceScorePanel');box.classList.remove('hidden');
   box.innerHTML=`<div class="score-head"><div><span class="eyebrow">CALCOLATORE CLINICO</span><h3>CHA₂DS₂-VA</h3><p>Rischio tromboembolico nella fibrillazione atriale. Inserisci solo dati verificati.</p></div><button type="button" id="closeScore" class="btn secondary">Chiudi</button></div><div class="score-grid"><label>Età (anni)<input id="scoreAge" type="number" min="18" max="120" inputmode="numeric" required></label>${[['scoreHeartFailure','Scompenso cardiaco'],['scoreHypertension','Ipertensione'],['scoreDiabetes','Diabete'],['scoreStroke','Pregresso ictus/TIA'],['scoreVascular','Vasculopatia']].map(([id,label])=>`<label>${label}<select id="${id}"><option value="">Scegli</option><option value="yes">Sì</option><option value="no">No</option></select></label>`).join('')}</div><button type="button" id="calculateScore" class="btn">Calcola score</button><div id="scoreResult" role="status" aria-live="polite"></div><p class="small muted">Il punteggio è un supporto alla valutazione, non una prescrizione. <a href="${CHA2DS2_VA_SOURCE}" target="_blank" rel="noopener noreferrer">Linee guida ESC 2024 ↗</a></p>`;
