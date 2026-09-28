@@ -133,7 +133,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   async function decideWelcome(raw){
     if(welcomePending)return;
     welcomePending=true;const request=++welcomeRequest;++welcomeRun;clearWelcomeAudio();welcomeStatus('Medi interpreta la risposta con Gemini…');
-    for(const id of ['patientVoiceYes','patientVoiceNo','patientVoiceRetry'])$(id).disabled=true;
+    $('patientVoiceRetry').disabled=true;
     let requestTimer;
     try{
       const {data,error}=await Promise.race([
@@ -141,6 +141,7 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
         new Promise((_,reject)=>{requestTimer=setTimeout(()=>reject(Error('Gemini non ha risposto entro 35 secondi. Puoi riprovare oppure chiudere la finestra.')),35000);})
       ]);
       if(request!==welcomeRequest)return;
+      if(error?.context?.status===429)throw Error('Google segnala un limite di richieste. Puoi usare i pulsanti Sì e No.');
       if(error?.context?.status===503)throw Error('Il servizio Gemini è temporaneamente indisponibile. Puoi riprovare oppure chiudere la finestra.');
       if(error||data?.error||!['ask_patient','go_home','clarify'].includes(data?.action))throw Error('Non ho ricevuto una risposta valida da Gemini. Puoi riprovare oppure chiudere la finestra.');
       if(data.action==='go_home')return finishWelcomeNo();
@@ -389,8 +390,8 @@ export function initVoiceCommands({ $, sb, getPatients, getSelected, openPatient
   return {
     stop,
     startWelcomeFlow(){if(['Clinician','Administrator'].includes(getRole()))promptWelcome('decision');},
-    answerWelcomeYes(){if(welcomeStage==='decision')return decideWelcome('sì');},
-    answerWelcomeNo(){return decideWelcome('no');},
+    answerWelcomeYes(){if(welcomeStage==='decision')return promptWelcome('name');},
+    answerWelcomeNo(){return finishWelcomeNo();},
     retryWelcome(){if(welcomePending)return;if(welcomeStage){const stage=welcomeStage;if(voiceContext?.state==='suspended'){promptWelcome(stage);return;}stopWelcomeFlow();welcomeStage=stage;welcomeDeadline=0;listenWelcomeWindow(welcomeRun);}},
     openWelcomeName:openWelcomePatient,
     stopWelcomeFlow,
