@@ -216,3 +216,291 @@ body:has(#portal:not(.hidden)) .top{background:#f8fbf8;border-bottom-color:#d2e4
 #mediGeminiForm .row{margin-top:12px;gap:8px;flex-wrap:wrap}
 .clinical-answer p{white-space:pre-wrap;overflow-wrap:anywhere}
 .medi-search-suggestions{width:100%;border:0;min-height:110px;background:#fff}
+
+
+/* ============================================================
+   MEDITALY CLINICA - GREEN PRODUCTION UI 2026-10-03
+   Visual restyle only. Clinical and authentication logic unchanged.
+   ============================================================ */
+:root{
+  --med-green-950:#004d36;
+  --med-green-900:#005c3f;
+  --med-green-800:#006f49;
+  --med-green-700:#008b57;
+  --med-green-600:#0aa766;
+  --med-green-100:#def7e9;
+  --med-green-50:#f1fbf6;
+  --med-ink:#12233f;
+  --med-muted:#657387;
+  --med-line:#e3e9e6;
+  --med-bg:#f6faf8;
+  --med-red:#e83434;
+  --med-red-soft:#fff0ef;
+  --med-blue:#145ad7;
+  --med-blue-soft:#edf5ff;
+  --med-violet:#6328d6;
+  --med-violet-soft:#f3eeff;
+  --med-amber:#d88800;
+  --med-amber-soft:#fff6e2;
+}
+
+/* Login / registrazione */
+body:not(:has(#portal:not(.hidden))){
+  background:
+    radial-gradient(circle at 9% 12%,rgba(23,166,101,.10),transparent 28%),
+    radial-gradient(circle at 88% 18%,rgba(0,91,63,.08),transparent 30%),
+    linear-gradient(180deg,#f9fcfa 0%,#f1f8f4 100%);
+  color:var(--med-ink);
+}
+body:not(:has(#portal:not(.hidden))) .wrap{max-width:1120px;padding-top:34px}
+body:not(:has(#portal:not(.hidden))) .top{margin-bottom:26px}
+body:not(:has(#portal:not(.hidden))) .brand{color:var(--med-green-900)}
+body:not(:has(#portal:not(.hidden))) .brand span{color:#23453a}
+body:not(:has(#portal:not(.hidden))) .brand-mark{background:var(--med-green-900);box-shadow:0 10px 26px rgba(0,91,63,.18)}
+body:not(:has(#portal:not(.hidden))) .auth-premium{
+  max-width:760px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid #dce8e1;
+  border-radius:24px;
+  box-shadow:0 28px 75px rgba(15,66,45,.12);
+  background:#fff;
+}
+body:not(:has(#portal:not(.hidden))) .clinica-login-hero{
+  grid-template-columns:minmax(0,1fr) 124px;
+  margin:0;
+  padding:30px 32px;
+  border:0;
+  border-radius:0;
+  background:linear-gradient(135deg,var(--med-green-950),var(--med-green-700));
+}
+body:not(:has(#portal:not(.hidden))) .clinica-login-hero .eyebrow{color:#aaf1ca}
+body:not(:has(#portal:not(.hidden))) .clinica-login-hero h1{color:#fff;font-size:31px}
+body:not(:has(#portal:not(.hidden))) .clinica-login-hero p{color:#e2f5ea;font-size:15px;max-width:520px}
+body:not(:has(#portal:not(.hidden))) .clinica-heart{width:108px;height:96px}
+body:not(:has(#portal:not(.hidden))) .clinica-heart img{width:104px;height:92px;filter:brightness(0) invert(1) drop-shadow(0 10px 18px rgba(0,0,0,.16))}
+body:not(:has(#portal:not(.hidden))) #auth>.tabs,
+body:not(:has(#portal:not(.hidden))) #loginPane,
+body:not(:has(#portal:not(.hidden))) #registerPane,
+body:not(:has(#portal:not(.hidden))) #authMsg{margin-left:32px;margin-right:32px}
+body:not(:has(#portal:not(.hidden))) #auth>.tabs{margin-top:24px;border-bottom:1px solid var(--med-line);gap:4px}
+body:not(:has(#portal:not(.hidden))) #auth>.tabs button{border-radius:10px 10px 0 0;background:#f1f6f3;color:#496358;font-weight:800}
+body:not(:has(#portal:not(.hidden))) #auth>.tabs button.on{background:var(--med-green-900);color:#fff}
+body:not(:has(#portal:not(.hidden))) #loginPane,
+body:not(:has(#portal:not(.hidden))) #registerPane{padding:4px 0 26px}
+body:not(:has(#portal:not(.hidden))) #loginPane h2,
+body:not(:has(#portal:not(.hidden))) #registerPane h2{color:var(--med-ink);font-size:24px;margin-bottom:4px}
+body:not(:has(#portal:not(.hidden))) .field label{color:#294638}
+body:not(:has(#portal:not(.hidden))) .field input,
+body:not(:has(#portal:not(.hidden))) .field select,
+body:not(:has(#portal:not(.hidden))) .field textarea{border-color:#d7e3dc;border-radius:11px;background:#fbfdfc;min-height:46px}
+body:not(:has(#portal:not(.hidden))) .field input:focus,
+body:not(:has(#portal:not(.hidden))) .field select:focus,
+body:not(:has(#portal:not(.hidden))) .field textarea:focus{outline:3px solid rgba(10,167,102,.14);border-color:var(--med-green-600)}
+body:not(:has(#portal:not(.hidden))) .btn{background:var(--med-green-700);border-radius:10px}
+body:not(:has(#portal:not(.hidden))) .btn:hover{background:var(--med-green-800)}
+body:not(:has(#portal:not(.hidden))) .btn.secondary{background:#edf5f0;color:#285440}
+body:not(:has(#portal:not(.hidden))) #login.btn{min-height:48px;font-size:15px;background:linear-gradient(90deg,var(--med-green-700),var(--med-green-600))}
+body:not(:has(#portal:not(.hidden))) .legal-clinician{border-color:#dce8e1;background:#f6fbf8}
+body:not(:has(#portal:not(.hidden))) .legal-clinician a{color:var(--med-green-800)}
+
+/* Portale desktop */
+body:has(#portal:not(.hidden)){background:var(--med-bg);color:var(--med-ink)}
+body:has(#portal:not(.hidden)) .wrap{max-width:1600px;padding:16px 22px 32px}
+body:has(#portal:not(.hidden)) .top{
+  margin:0 0 14px;
+  padding:10px 6px 14px;
+  border-bottom:1px solid #e4ece7;
+  background:transparent;
+}
+body:has(#portal:not(.hidden)) .brand{color:var(--med-green-900)}
+body:has(#portal:not(.hidden)) .brand span{color:#274b3c}
+body:has(#portal:not(.hidden)) .brand-mark{background:var(--med-green-900)}
+#portal .grid{grid-template-columns:260px minmax(0,1fr);gap:22px;align-items:start}
+#portal .grid main{padding:2px 0 20px}
+
+/* Barra menu verde scuro approvata */
+#portal .nav{
+  position:sticky;
+  top:18px;
+  display:flex;
+  flex-direction:column;
+  flex-wrap:nowrap;
+  gap:5px;
+  min-height:calc(100vh - 62px);
+  margin:0;
+  padding:18px 13px;
+  background:linear-gradient(180deg,var(--med-green-900) 0%,#004b36 100%);
+  border:0;
+  border-radius:20px;
+  box-shadow:0 18px 45px rgba(0,73,50,.18);
+}
+#portal .nav button{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:48px;
+  padding:12px 14px;
+  background:transparent;
+  color:#e8fff3;
+  border:0;
+  border-radius:11px;
+  font-size:14px;
+  font-weight:720;
+  white-space:normal;
+}
+#portal .nav button:hover{background:rgba(255,255,255,.09);color:#fff}
+#portal .nav button.on{
+  background:linear-gradient(90deg,#0aae68,#12b972);
+  color:#fff;
+  border:0;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 7px 18px rgba(0,0,0,.10);
+}
+#portal .nav .nav-home-icon{width:19px;height:19px;margin-right:0;color:currentColor}
+
+#portal .hero{
+  margin:0 0 18px;
+  padding:10px 4px 20px;
+  border:0;
+  border-bottom:1px solid #e3ebe6;
+  background:transparent;
+  color:var(--med-ink);
+}
+#portal .hero .eyebrow{color:var(--med-green-700)}
+#portal .hero h1{color:var(--med-ink);font-size:34px;letter-spacing:-.04em}
+#portal .hero p{color:var(--med-muted);font-size:15px}
+#portal .hero .btn,#portal .btn{background:var(--med-green-700);border-radius:9px}
+#portal .btn:hover{background:var(--med-green-800)}
+#portal .btn.secondary{background:#edf5f0;color:#285640;border:1px solid #d7e6dc}
+
+/* KPI: pastello, come anteprima approvata */
+#portal .kpis{background:transparent;border:0;padding:0;gap:12px;margin-bottom:20px}
+#portal .kpi{
+  min-height:126px;
+  padding:18px;
+  border:1px solid #e2e8e5;
+  border-left:0;
+  border-radius:16px;
+  background:#fff;
+  color:#546577;
+  box-shadow:0 8px 22px rgba(23,55,42,.04);
+}
+#portal .kpi b{font-size:32px;color:var(--med-ink)}
+#portal .kpi:nth-child(1){background:var(--med-green-50);border-color:#ccebd9;color:var(--med-green-800)}
+#portal .kpi:nth-child(1) b{color:var(--med-green-800)}
+#portal .kpi:nth-child(2){background:var(--med-red-soft);border-color:#ffd9d5;color:#c82727}
+#portal .kpi:nth-child(2) b{color:#d92323}
+#portal .kpi:nth-child(3){background:#fff8e9;border-color:#f7e6b5;color:#a46b00}
+#portal .kpi:nth-child(3) b{color:#b77800}
+#portal .kpi:nth-child(4){background:#fff7eb;border-color:#f7dfbd;color:#b26b0c}
+#portal .kpi:nth-child(4) b{color:#c26b00}
+#portal .kpi:nth-child(5){background:var(--med-blue-soft);border-color:#d8e8ff;color:var(--med-blue)}
+#portal .kpi:nth-child(5) b{color:var(--med-blue)}
+#portal .kpi-link small{color:inherit;text-decoration:none;opacity:.82}
+#portal .kpi-link:hover{transform:translateY(-1px);filter:saturate(1.04)}
+
+#portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{
+  border:1px solid #e1e8e4;
+  border-radius:16px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(23,55,42,.035);
+}
+#portal .overview-columns{gap:14px}
+
+/* Pazienti: righe realmente tabellate */
+#portal #patients>.card{padding:18px}
+#portal #patientList{gap:0;margin-top:16px;border:1px solid #e1e7e4;border-radius:13px;overflow:hidden;background:#fff}
+#portal .patient-table-head,
+#portal #patientList .patient{
+  display:grid!important;
+  grid-template-columns:minmax(200px,1.55fr) 70px minmax(145px,1fr) 115px minmax(145px,1fr) minmax(190px,1.1fr);
+  gap:12px;
+  align-items:center;
+}
+#portal .patient-table-head{
+  min-height:46px;
+  padding:10px 16px;
+  background:#f4f7f5;
+  color:#34465d;
+  border-bottom:1px solid #e1e7e4;
+  font-size:12px;
+  font-weight:850;
+}
+#portal #patientList .patient{
+  position:relative;
+  padding:12px 16px;
+  border:0;
+  border-bottom:1px solid #e8ecea;
+  border-radius:0;
+  background:#fff;
+  cursor:pointer;
+}
+#portal #patientList .patient:last-child{border-bottom:0}
+#portal #patientList .patient:hover{background:#f7fbf8}
+#portal #patientList .patient.is-selected{background:#ecf8f1;border:0;border-left:4px solid var(--med-green-700);box-shadow:none}
+#portal .patient-name-cell{min-width:0}
+#portal .patient-name-cell b{display:block;color:var(--med-ink);font-size:14px}
+#portal .patient-subline{display:block;margin-top:3px;color:#778493;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#portal .patient-age-cell,#portal .patient-checkin-cell,#portal .patient-status-cell,#portal .patient-alert-cell{font-size:13px;color:#33435b}
+#portal .patient-status-cell .pill{display:inline-flex;align-items:center;justify-content:center;min-width:78px}
+#portal .patient-alert-cell .intake-alert-pill{margin:0;background:#fff0ef;border:0;color:#d12828}
+#portal .patient-alert-empty{color:#97a1ad}
+#portal .patient-quick{display:flex;justify-content:flex-end;gap:6px;margin:0;width:auto}
+#portal .patient-quick button{
+  min-height:34px;
+  padding:7px 9px;
+  border:1px solid #d9e5de;
+  border-radius:8px;
+  background:#f7faf8;
+  color:#24543c;
+  font-size:11px;
+  font-weight:800;
+}
+#portal .patient-quick button:hover{background:#e8f5ed;border-color:#c8dfd0}
+#portal #patientList .patient>.right{display:none}
+
+/* Scheda paziente */
+#portal #patientDetail{margin-top:18px}
+#portal #patientDetail>.card{border:1px solid #dce7e1;border-top:4px solid var(--med-green-700);border-radius:16px}
+.patient-detail-heading{padding:3px 0 16px;border-bottom:1px solid #e2e9e5}
+.patient-open-label{color:var(--med-green-700)}
+#portal #patientDetail .tabs{gap:5px;padding:6px;background:#f3f7f5;border:1px solid #e0e8e3;border-radius:11px}
+#portal #patientDetail .tabs button{border-radius:8px;background:transparent;color:#4a5c69}
+#portal #patientDetail .tabs button.on{background:var(--med-green-800);color:#fff;box-shadow:none}
+#portal #patientDetail .item{border:1px solid #e2e8e5;border-radius:10px;background:#fff}
+
+/* Admin e moduli allineati */
+#portal .admin-panel,#portal .voice-panel{border-color:#dbe7e0}
+#portal .admin-page-head h1,#portal h1,#portal h2,#portal h3{color:var(--med-ink)}
+#portal .field input,#portal .field select,#portal .field textarea,#portal #patientSearch,#portal .delivery-tools input,#portal .delivery-tools select{border-color:#d7e2dc;border-radius:9px;background:#fbfdfc;color:#263a31}
+#portal .field input:focus,#portal .field select:focus,#portal .field textarea:focus,#portal #patientSearch:focus{outline:3px solid rgba(10,167,102,.13);border-color:var(--med-green-600)}
+
+@media(max-width:1100px){
+  #portal .grid{grid-template-columns:220px minmax(0,1fr)}
+  #portal .patient-table-head,#portal #patientList .patient{grid-template-columns:minmax(170px,1.4fr) 60px minmax(125px,1fr) 105px minmax(115px,.9fr)}
+  #portal .patient-table-head>*:nth-child(6),#portal #patientList .patient>.patient-actions-cell{grid-column:1/-1}
+  #portal .patient-quick{justify-content:flex-start}
+}
+@media(max-width:900px){
+  #portal .grid{grid-template-columns:1fr}
+  #portal .nav{position:relative;top:auto;min-height:0;flex-direction:row;overflow:auto;border-radius:14px;padding:8px}
+  #portal .nav button{flex:0 0 auto;min-height:42px;color:#eafff4}
+}
+@media(max-width:700px){
+  body:not(:has(#portal:not(.hidden))) .auth-premium{border-radius:18px}
+  body:not(:has(#portal:not(.hidden))) .clinica-login-hero{grid-template-columns:1fr;padding:24px}
+  body:not(:has(#portal:not(.hidden))) .clinica-heart{display:none}
+  body:not(:has(#portal:not(.hidden))) #auth>.tabs,
+  body:not(:has(#portal:not(.hidden))) #loginPane,
+  body:not(:has(#portal:not(.hidden))) #registerPane,
+  body:not(:has(#portal:not(.hidden))) #authMsg{margin-left:20px;margin-right:20px}
+  #portal .nav{position:fixed;bottom:0;left:0;right:0;z-index:30;border-radius:0;background:var(--med-green-900);box-shadow:0 -9px 26px rgba(0,61,43,.19)}
+  #portal .patient-table-head{display:none!important}
+  #portal #patientList{border:0;overflow:visible;background:transparent}
+  #portal #patientList .patient{grid-template-columns:1fr auto;padding:14px;border:1px solid #e1e8e4;border-radius:12px;margin-bottom:9px}
+  #portal .patient-name-cell{grid-column:1}
+  #portal .patient-age-cell{grid-column:2;grid-row:1}
+  #portal .patient-checkin-cell,#portal .patient-status-cell,#portal .patient-alert-cell,#portal .patient-actions-cell{grid-column:1/-1}
+  #portal .patient-quick{justify-content:stretch}
+  #portal .patient-quick button{flex:1}
+}
