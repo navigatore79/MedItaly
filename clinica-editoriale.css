@@ -504,3 +504,62 @@ body:has(#portal:not(.hidden)) .brand-mark{background:var(--med-green-900)}
   #portal .patient-quick{justify-content:stretch}
   #portal .patient-quick button{flex:1}
 }
+
+
+/* HOTFIX 2026-10-03: desktop dashboard shell
+   Restores the intended two-column layout after the green restyle. */
+@media (min-width:901px){
+  #portal .grid{
+    display:grid!important;
+    grid-template-columns:240px minmax(0,1fr)!important;
+    gap:22px!important;
+    align-items:start!important;
+  }
+  #portal .nav{
+    position:sticky!important;
+    top:18px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    width:240px!important;
+    min-width:240px!important;
+    max-width:240px!important;
+    min-height:calc(100vh - 70px)!important;
+    margin:0!important;
+    padding:16px 12px!important;
+    overflow:visible!important;
+    background:linear-gradient(180deg,#005c3f 0%,#004d36 100%)!important;
+    border:0!important;
+    border-radius:18px!important;
+    box-shadow:0 16px 38px rgba(0,73,50,.16)!important;
+  }
+  #portal .nav button{
+    flex:0 0 auto!important;
+    width:100%!important;
+    min-height:46px!important;
+    padding:11px 13px!important;
+    color:#eafff3!important;
+    background:transparent!important;
+    border:0!important;
+    border-radius:10px!important;
+    text-align:left!important;
+    white-space:normal!important;
+  }
+  #portal .nav button:hover{
+    background:rgba(255,255,255,.08)!important;
+    color:#fff!important;
+  }
+  #portal .nav button.on{
+    background:linear-gradient(90deg,#0aae68,#12b972)!important;
+    color:#fff!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  #portal .grid>main{
+    width:100%!important;
+    min-width:0!important;
+  }
+  #portal #patientList{
+    width:100%!important;
+  }
+}
