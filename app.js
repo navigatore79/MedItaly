@@ -465,14 +465,38 @@ async function loadPatients(){
   renderPatients();
 }
 
+function patientAge(dateOfBirth){
+  if(!dateOfBirth)return '—';
+  const d=new Date(dateOfBirth),now=new Date();
+  if(Number.isNaN(d.getTime()))return '—';
+  let age=now.getFullYear()-d.getFullYear();
+  const m=now.getMonth()-d.getMonth();
+  if(m<0||(m===0&&now.getDate()<d.getDate()))age--;
+  return age>=0?String(age):'—';
+}
+
 function renderPatients(){
   const q=($('patientSearch')?.value||'').toLowerCase();
   $('patientFilterLabel').textContent=patientFilter?`Filtro: ${patientFilter.label} · ${patientFilter.ids.size} pazienti`:'Tutti i pazienti collegati al tuo account';
   $('clearPatientFilter').classList.toggle('hidden',!patientFilter);
   const visible=patients.filter(x=>(!patientFilter||patientFilter.ids.has(x.patient_id))&&(x.profile?.full_name||'').toLowerCase().includes(q));
-  $('patientList').innerHTML=(patientLoadError?`<div class="err" role="alert">Impossibile caricare i pazienti: ${esc(patientLoadError)}</div>`:'')+visible.map(x=>
-    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(careAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Da valutare · '+careAlerts.get(x.patient_id).length+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
-  ).join('')||(patientLoadError?'':patientFilter?'<p class="notice">Nessun paziente per questo indicatore.</p>':`<p class="notice">Nessun paziente assegnato all’account ${esc(me?.full_name||'attuale')}. La vista Medico dell’amministratore mostra soltanto i pazienti assegnati al suo account; gli altri medici hanno elenchi separati. Per creare un’associazione usa Amministrazione.</p>`);
+  const header='<div class="patient-table-head" aria-hidden="true"><span>Nome e cognome</span><span>Età</span><span>Ultimo check-in</span><span>Stato</span><span>Alert</span><span>Azioni</span></div>';
+  const rows=visible.map(x=>{
+    const alerts=careAlerts.get(x.patient_id)||[];
+    const latestText=x.latest?fmt(x.latest.submitted_at):'Nessun check-in';
+    const alertHtml=alerts.length?`<span class="pill intake-alert-pill">Da valutare · ${alerts.length}</span>`:'<span class="patient-alert-empty">—</span>';
+    return `<div class="patient row" data-id="${x.patient_id}">
+      <div class="patient-name-cell"><b>${esc(x.profile?.full_name||'Paziente')}</b><span class="patient-subline">${esc(x.profile?.phone||'')}</span></div>
+      <div class="patient-age-cell">${patientAge(x.profile?.date_of_birth)}</div>
+      <div class="patient-checkin-cell">${esc(latestText)}</div>
+      <div class="patient-status-cell">${healthPill(x.latest?.status)}</div>
+      <div class="patient-alert-cell">${alertHtml}</div>
+      <div class="patient-actions-cell"><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div></div>
+      <span class="right">›</span>
+    </div>`;
+  }).join('');
+  const empty=patientLoadError?'':patientFilter?'<p class="notice">Nessun paziente per questo indicatore.</p>':`<p class="notice">Nessun paziente assegnato all’account ${esc(me?.full_name||'attuale')}. La vista Medico dell’amministratore mostra soltanto i pazienti assegnati al suo account; gli altri medici hanno elenchi separati. Per creare un’associazione usa Amministrazione.</p>`;
+  $('patientList').innerHTML=(patientLoadError?`<div class="err" role="alert">Impossibile caricare i pazienti: ${esc(patientLoadError)}</div>`:'')+(rows?header+rows:empty);
   highlightPatient();
   document.querySelectorAll('.patient[data-id]').forEach(x=>{x.tabIndex=0;x.onclick=()=>openPatient(x.dataset.id);x.onkeydown=e=>{if(e.target===x&&['Enter',' '].includes(e.key)){e.preventDefault();openPatient(x.dataset.id);}};});
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
