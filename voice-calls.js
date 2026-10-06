@@ -22,9 +22,9 @@
   c.timer=setInterval(()=>poll(c),2000);return c;
  }
  const owns=c=>active===c&&uid===c.user&&disposed===c.guard&&!c.ending;
- function clear(c){if(!c)return;clearInterval(c.timer);clearTimeout(c.connectionTimer);c.pc?.close();c.stream?.getTracks().forEach(t=>t.stop());c.audio.pause();c.audio.srcObject=null;c.node.remove();window.AndroidBridge?.setCallAudioActive?.(c.call.id,false);window.MeditalyAudio?.resumeAssistants();if(active===c)active=null;}
+ function clear(c){if(!c)return;window.AndroidBridge?.dismissCallNotification?.(c.call.id);clearInterval(c.timer);clearTimeout(c.connectionTimer);c.pc?.close();c.stream?.getTracks().forEach(t=>t.stop());c.audio.pause();c.audio.srcObject=null;c.node.remove();window.AndroidBridge?.setCallAudioActive?.(c.call.id,false);window.MeditalyAudio?.resumeAssistants();if(active===c)active=null;}
  async function finish(c,action){if(!owns(c))return;c.ending=true;let result=null;try{result=await rpc('update_voice_call',{p_call:c.call.id,p_action:action});}catch(_){message('Connessione persa. Chiamata chiusa sul dispositivo.');}finally{if(active===c)clear(c);}return result;}
- function complete(c,status){clearInterval(c.timer);clearTimeout(c.connectionTimer);c.pc?.close();c.stream?.getTracks().forEach(t=>t.stop());c.audio.pause();window.AndroidBridge?.setCallAudioActive?.(c.call.id,false);window.MeditalyAudio?.resumeAssistants();c.status.textContent=labels[status]||'Chiamata terminata';c.node.querySelectorAll('button').forEach(b=>b.hidden=!b.hasAttribute('data-close'));}
+ function complete(c,status){window.AndroidBridge?.dismissCallNotification?.(c.call.id);clearInterval(c.timer);clearTimeout(c.connectionTimer);c.pc?.close();c.stream?.getTracks().forEach(t=>t.stop());c.audio.pause();window.AndroidBridge?.setCallAudioActive?.(c.call.id,false);window.MeditalyAudio?.resumeAssistants();c.status.textContent=labels[status]||'Chiamata terminata';c.node.querySelectorAll('button').forEach(b=>b.hidden=!b.hasAttribute('data-close'));}
  async function config(){const {data,error}=await sb.functions.invoke('voice-call',{body:{action:'config'}});if(error||!data?.iceServers?.length)throw new Error('Le chiamate vocali non sono ancora attive. La chat e i vocali restano disponibili.');return data.iceServers;}
  async function microphone(c,servers){
   if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)throw new Error('Aggiorna il browser o Android System WebView per le chiamate.');
@@ -46,7 +46,7 @@
   }catch(e){if(streamCall){await finish(streamCall,'fail');}alert(e.message==='CALL_BUSY'?'Il paziente o il medico è già in una chiamata.':e.message||'Impossibile avviare la chiamata.');}finally{starting=false;}
  }
  async function answer(c){
-  if(!owns(c)||c.accepting)return;c.accepting=true;c.node.querySelector('[data-answer]').disabled=true;c.status.textContent='Collegamento audio…';
+  if(!owns(c)||c.accepting||c.call.status!=='ringing')return;c.accepting=true;c.node.querySelector('[data-answer]').disabled=true;c.status.textContent='Collegamento audio…';
   try{const servers=await config();if(!owns(c))return;if(!await microphone(c,servers))return;
    const result=await rpc('update_voice_call',{p_call:c.call.id,p_action:'accept'});if(!owns(c))return;c.call=result;c.connectionTimer=setTimeout(()=>{if(owns(c)&&c.pc?.connectionState!=='connected')finish(c,'fail');},45000);if(result.status!=='accepted'){complete(c,result.status);return;}
    c.node.querySelector('[data-answer]').hidden=true;c.node.querySelector('[data-reject]').hidden=true;c.node.querySelector('[data-end]').hidden=false;await poll(c);
