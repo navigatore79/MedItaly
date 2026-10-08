@@ -7,3 +7,5 @@ dialog.patient-voice-welcome{padding:0;border:1px solid #d2dfd6;border-radius:24
 
 #portal #patientList .patient-table-row,#portal #patientList .patient-table-row.is-selected{padding:0;border:0;box-shadow:none}#portal #patientList .patient-table-row:focus-visible{outline:2px solid #326d58;outline-offset:-2px}
 @media(max-width:700px){#portal #patientList .patient-table-row{border:1px solid #dce6df}#portal #patientList .patient-table-row.is-selected{border:1px solid #74a782}}
+
+#portal #patientDetail{margin-top:0;scroll-margin-top:24px}.patient-detail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #e1ebe4}.patient-detail-toolbar>span{font-size:10px;font-weight:800;letter-spacing:.12em;color:#7b9384}#portal .patient-detail-heading h2{font-size:28px;color:#214b39;margin:7px 0}#portal .patient-detail-toolbar .btn{min-height:42px}

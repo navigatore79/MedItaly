@@ -153,6 +153,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.classList.contains('hidden'))return;
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); $(b.dataset.view).classList.remove('hidden');
+  if(b.dataset.view==='patients')showPatientDirectory(false);
   if(b.dataset.view==='overview'||b.dataset.view==='patients') await loadOverview();
   if(b.dataset.view==='appointments') await loadAppointments();
   if(b.dataset.view==='therapies') loadTherapyPatientList();
@@ -560,12 +561,21 @@ let patientOpenRequest=0;
 function highlightPatient(){
  document.querySelectorAll('#patientList .patient[data-id]').forEach(row=>{const active=row.dataset.id===selected;row.classList.toggle('is-selected',active);row.setAttribute('aria-current',String(active));});
 }
+function showPatientDirectory(focus=true){
+ ++patientOpenRequest;
+ const detail=$('patientDetail'),directory=detail.previousElementSibling;
+ detail.classList.add('hidden');detail.removeAttribute('aria-busy');
+ directory?.classList.remove('hidden');
+ if(focus){const row=[...document.querySelectorAll('#patientList .patient[data-id]')].find(x=>x.dataset.id===selected);const target=row||$('patientSearch');target?.focus({preventScroll:true});target?.scrollIntoView({behavior:'auto',block:'center'});}
+}
 async function openPatient(id){
   if(!patients.some(patient=>patient.patient_id===id))throw new Error('Paziente non assegnato al tuo account.');
   const request=++patientOpenRequest;
   selected=id;highlightPatient();
   const detail=$('patientDetail');detail.classList.remove('hidden');detail.setAttribute('aria-busy','true');
-  detail.innerHTML='<div class="card patient-loading" role="status">Apertura scheda paziente…</div>';
+  detail.previousElementSibling?.classList.add('hidden');
+  detail.innerHTML='<div class="card patient-loading"><button type="button" id="backPatientDirectory" class="btn secondary">← Elenco pazienti</button><p role="status">Apertura scheda di '+esc(patients.find(x=>x.patient_id===id)?.profile?.full_name||'Paziente')+'…</p></div>';
+  $('backPatientDirectory').onclick=()=>showPatientDirectory();
   detail.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
   const p=patients.find(x=>x.patient_id===id)?.profile;
   const[daily,meds,fu,msgs,setts,protos,imports,intakes,reports,procedure,conditions,deviceMeasures,patientDevices]=await Promise.all([
@@ -589,6 +599,7 @@ async function openPatient(id){
   const readError=key=>readErrors[key]?`<div class="err" role="alert">Impossibile caricare la sezione: ${esc(readErrors[key].message)}</div>`:'';
   const latest=daily.data?.[0];
   $('patientDetail').innerHTML=`<div class="card">
+    <div class="patient-detail-toolbar"><button type="button" id="backPatientDirectory" class="btn secondary">← Elenco pazienti</button><span>AREA PAZIENTE</span></div>
     <div class="row between patient-detail-heading"><div><span class="patient-open-label">SCHEDA PAZIENTE APERTA</span><h2 tabindex="-1" id="patientDetailTitle">${esc(p?.full_name||'Paziente')}</h2><div class="muted small">${esc(p?.phone||'')} ${p?.date_of_birth?'· '+esc(p.date_of_birth):''}</div></div><div class="row">${healthPill(latest?.status)}</div></div>
     <div id="patientIntakeAlert" role="status"></div>
     <div class="tabs"><button class="on" data-tab="summary">Monitoraggio</button><button data-tab="therapy">Terapie</button><button data-tab="controls">Controlli</button><button data-tab="chat">Messaggi</button><button data-tab="patientimports">Invii paziente</button><button data-tab="reports">Referti</button><button data-tab="devices">Dispositivi</button><button data-tab="settings">Protocollo</button></div>
@@ -603,11 +614,14 @@ async function openPatient(id){
 <h3 style="margin-top:18px">Ultime misurazioni</h3><div class="table-like">${(deviceMeasures.data||[]).map(x=>{let val=x.measurement_type==='blood_pressure'?(`${x.systolic??'—'}/${x.diastolic??'—'} ${esc(x.unit||'mmHg')}${x.pulse!=null?' · FC '+x.pulse+' bpm':''}`):(`${x.value??'—'} ${esc(x.unit||'')}`);return `<div class="item"><div class="row"><b>${esc(x.measurement_type.replaceAll('_',' '))}</b><span class="spacer"></span><strong>${val}</strong></div><div class="small muted">${fmt(x.measured_at)} · Fonte: ${esc(x.source)}</div></div>`;}).join('')||'<p class="muted">Nessuna misurazione disponibile.</p>'}</div></div>
     <div id="settings" class="tabp hidden">${readError('settings')}<h3>Livello di monitoraggio</h3><div class="two"><div><div class="field"><label>Protocollo</label><select id="patientProtocol"><option value="">Personalizzato</option>${(protos.data||[]).map(x=>'<option value="'+x.id+'" '+(setts.data?.protocol_id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('')}</select></div><div class="row"><button id="applyProto" class="btn secondary">Rivedi e applica</button><button id="openProtocols" class="btn secondary">Gestisci protocolli</button></div><div id="protocolReview" class="card hidden" style="margin-top:12px"></div><div class="quick-protocol-create"><label>Nuovo protocollo rapido</label><div class="row"><input id="patientNewProtocolName" placeholder="Nome del protocollo"><button id="createPatientProtocol" class="btn">Aggiungi</button></div><div class="small muted">Crea un modello base; potrai completarlo nella sezione Protocolli.</div></div></div><div><div class="field"><label>Ora check-in</label><input id="setTime" type="time" value="${esc((setts.data?.checkin_time||'09:00').slice(0,5))}"></div><div class="row"><label><input id="setYellow" type="checkbox" ${setts.data?.alert_on_yellow?'checked':''}> Evidenzia giallo</label><label><input id="setRed" type="checkbox" ${setts.data?.alert_on_red!==false?'checked':''}> Evidenzia rosso</label></div><button id="saveSettings" class="btn" style="margin-top:12px">Salva personalizzazione</button><div id="setMsg"></div></div></div></div>
   </div>`;
+  $('backPatientDirectory').onclick=()=>showPatientDirectory();
+  requestAnimationFrame(()=>{if(request===patientOpenRequest&&!detail.classList.contains('hidden'))detail.scrollIntoView({behavior:'auto',block:'start'});});
   MeditalyAudio.mountPlayers($('chatBox'),sb);
   $('voiceChat').onclick=()=>MeditalyAudio.record({sb,recipient:id,getUserId:()=>chatUserId,notify:result=>result.outbox_id?dispatch(result.outbox_id):Promise.resolve(false),onSent:async(_,ok)=>{if(selected!==id)return;await openPatient(id);$('patientDetail').querySelector('[data-tab="chat"]')?.click();out($('chatMsg'),ok?'Vocale inviato.':'Vocale salvato; notifica non confermata.',ok);}});
   $('callPatient').onclick=()=>MeditalyCalls.start(id,p?.full_name||'Paziente');
   MeditalyCalls.history($('voiceCallHistory'),id).catch(()=>{});
   await renderQuestionnaireManager(sb,id,me.id);
+  if(request!==patientOpenRequest)return;
   $('patientDetail').classList.remove('hidden');
   $('patientDetailTitle')?.focus({preventScroll:true});
   let patientIntakes=intakes.data||[];
