@@ -52,6 +52,7 @@
   </style>
   <link rel="stylesheet" href="/responsive.css" />
   <link rel="stylesheet" href="/clinica-editoriale.css" />
+  <link rel="stylesheet" href="/dashboard-polish.css" />
 </head>
 <body>
 <div class="wrap">
@@ -126,7 +127,7 @@
 
         <section id="patients" class="view hidden">
           <div class="card">
-            <div class="row between"><div><h2>Pazienti assegnati</h2><div id="patientFilterLabel" class="small muted"></div><button id="clearPatientFilter" type="button" class="btn secondary hidden">Mostra tutti</button></div><input id="patientSearch" placeholder="Cerca paziente" style="max-width:280px;padding:10px;border:1px solid #cedce4;border-radius:10px"></div>
+            <div class="row between"><div><h2>Pazienti assegnati</h2><div id="patientFilterLabel" class="small muted"></div><button id="clearPatientFilter" type="button" class="btn secondary hidden">Mostra tutti</button></div><input id="patientSearch" aria-label="Cerca per nome del paziente" placeholder="Cerca per nome…" style="max-width:280px;padding:10px;border:1px solid #cedce4;border-radius:10px"></div>
             <div id="patientList" class="list"></div>
           </div>
           <div id="patientDetail" class="section hidden"></div>
@@ -219,7 +220,10 @@
     </div>
   </section>
 
-  <dialog id="patientVoiceWelcome" class="patient-voice-welcome" aria-labelledby="patientVoiceWelcomeTitle" aria-describedby="patientVoiceWelcomeHelp"><span class="eyebrow">MEDI · ASSISTENTE VOCALE</span><h2 id="patientVoiceWelcomeTitle">Ciao dottore, cerco un paziente?</h2><p id="patientVoiceWelcomeHelp">Medi ascolta la risposta per 4 secondi. Se dici «sì», chiede nome e cognome; se dici «no», chiude la finestra e torna alla Panoramica.</p><p id="patientVoiceStatus" class="welcome-status" role="status" aria-live="polite">Avvio della domanda vocale…</p><div id="patientVoiceNameEntry" class="field hidden"><label for="patientVoiceName">Nome e cognome</label><input id="patientVoiceName" type="text" autocomplete="off" placeholder="Nome Cognome"><button id="patientVoiceOpen" type="button" class="btn secondary">Apri scheda</button></div><div class="welcome-actions"><button id="patientVoiceYes" type="button" class="btn">Sì, cerca paziente</button><button id="patientVoiceNo" type="button" class="btn secondary">No, vai alla Home</button><button id="patientVoiceRetry" type="button" class="btn secondary">Attiva ascolto</button></div></dialog>
+  <dialog id="patientVoiceWelcome" class="patient-voice-welcome" aria-labelledby="patientVoiceWelcomeTitle" aria-describedby="patientVoiceWelcomeHelp">
+    <header class="welcome-brand"><div><img src="brand-heart.svg" alt="" aria-hidden="true"><span>Meditaly<small>Dashboard clinica</small></span></div><button id="patientVoiceClose" type="button" class="welcome-close" aria-label="Chiudi e vai alla Panoramica">×</button></header>
+    <div class="welcome-content"><div class="welcome-microphone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></div><span class="eyebrow">MEDI · ASSISTENTE VOCALE</span><h2 id="patientVoiceWelcomeTitle">Ciao dottore, cerco un paziente?</h2><p id="patientVoiceWelcomeHelp">Rispondi sì per cercare un paziente, oppure continua nella Panoramica.</p><p id="patientVoiceStatus" class="welcome-status" role="status" aria-live="polite">Avvio della domanda vocale…</p><div id="patientVoiceNameEntry" class="field hidden"><label for="patientVoiceName">Nome e cognome</label><input id="patientVoiceName" type="text" autocomplete="off" placeholder="Nome Cognome"><button id="patientVoiceOpen" type="button" class="btn">Apri scheda paziente</button></div><div class="welcome-actions"><button id="patientVoiceYes" type="button" class="btn">Sì, cerca paziente</button><button id="patientVoiceNo" type="button" class="btn secondary">Vai alla Panoramica</button><button id="patientVoiceRetry" type="button" class="btn secondary">Attiva ascolto</button></div><p class="welcome-footnote">Ricerca riservata ai pazienti collegati al tuo account.</p></div>
+  </dialog>
 
   <div class="footer"><div class="legal-links"><a target="_blank" href="/documenti">Centro documenti</a><a target="_blank" href="/privacy-clinician">Privacy clinici</a><a target="_blank" href="/terms">Termini</a><a target="_blank" href="/security">Sicurezza</a><a target="_blank" href="/retention">Conservazione</a><a target="_blank" href="/medi-ai">Medi / IA</a><a target="_blank" href="/beta">Programma beta</a><a target="_blank" href="/proprieta-intellettuale">Proprietà intellettuale</a><a target="_blank" href="/subprocessors">Fornitori</a></div>Meditaly · Dashboard clinica Beta RC1 · © 2026 Ciro Maiello<br><span class="doc-version">Documenti pubblici v2.2</span></div>
 </div>
@@ -227,4 +231,5 @@
 <script type="module" src="app.js?v=20260928-1720"></script>
 </body>
 </html>
+
 

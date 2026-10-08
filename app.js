@@ -480,10 +480,12 @@ function renderPatients(){
   const q=($('patientSearch')?.value||'').toLowerCase();
   $('patientFilterLabel').textContent=patientFilter?`Filtro: ${patientFilter.label} · ${patientFilter.ids.size} pazienti`:'Tutti i pazienti collegati al tuo account';
   $('clearPatientFilter').classList.toggle('hidden',!patientFilter);
-  const visible=patients.filter(x=>(!patientFilter||patientFilter.ids.has(x.patient_id))&&(x.profile?.full_name||'').toLowerCase().includes(q));
-  $('patientList').innerHTML=(patientLoadError?`<div class="err" role="alert">Impossibile caricare i pazienti: ${esc(patientLoadError)}</div>`:'')+visible.map(x=>
-    '<div class="patient row" data-id="'+x.patient_id+'">'+healthPill(x.latest?.status)+'<div class="patient-main"><b>'+esc(x.profile?.full_name||'Paziente')+'</b><div class="small muted">'+(x.latest?'Ultimo check-in: '+esc(healthLabel(x.latest.status))+' · '+fmt(x.latest.submitted_at):'Nessun check-in')+'</div>'+(careAlerts.get(x.patient_id)?.length?'<span class="pill intake-alert-pill">Da valutare · '+careAlerts.get(x.patient_id).length+'</span>':'')+'</div><div class="patient-quick"><button type="button" data-action="notice">Notifica</button><button type="button" data-action="file">File</button><button type="button" data-action="message">Messaggio</button></div><span class="right">›</span></div>'
-  ).join('')||(patientLoadError?'':patientFilter?'<p class="notice">Nessun paziente per questo indicatore.</p>':`<p class="notice">Nessun paziente assegnato all’account ${esc(me?.full_name||'attuale')}. La vista Medico dell’amministratore mostra soltanto i pazienti assegnati al suo account; gli altri medici hanno elenchi separati. Per creare un’associazione usa Amministrazione.</p>`);
+  const visible=patients.filter(x=>(!patientFilter||patientFilter.ids.has(x.patient_id))&&(x.profile?.full_name||'').toLowerCase().includes(q)).sort((a,b)=>(a.profile?.full_name||'').localeCompare(b.profile?.full_name||'','it',{sensitivity:'base'}));
+  const rows=visible.map(x=>{
+    const name=x.profile?.full_name||'Paziente',initials=name.split(/\s+/).filter(Boolean).map(word=>word[0]).slice(0,2).join(''),alerts=careAlerts.get(x.patient_id)?.length||0;
+    return '<tr class="patient patient-table-row" data-id="'+esc(x.patient_id)+'"><td data-label="Paziente"><div class="patient-identity"><span class="patient-initials" aria-hidden="true">'+esc(initials)+'</span><div class="patient-main"><strong>'+esc(name)+'</strong>'+(alerts?'<span class="patient-attention">Da valutare · '+alerts+'</span>':'<span class="patient-secondary">Paziente collegato</span>')+'</div></div></td><td data-label="Ultimo check-in">'+healthPill(x.latest?.status)+'</td><td data-label="Registrato il"><span class="patient-date">'+(x.latest?esc(fmt(x.latest.submitted_at)):'Nessuna registrazione')+'</span></td><td data-label="Azioni"><div class="patient-quick"><button type="button" data-action="message" aria-label="Messaggio a '+esc(name)+'">Messaggio</button><button type="button" data-action="notice" aria-label="Notifica a '+esc(name)+'">Notifica</button><button type="button" data-action="file" aria-label="Invia file a '+esc(name)+'">File</button><span class="patient-open" aria-hidden="true">›</span></div></td></tr>';
+  }).join('');
+  $('patientList').innerHTML=patientLoadError?'<div class="err" role="alert">Impossibile caricare i pazienti: '+esc(patientLoadError)+'</div>':rows?'<table class="patient-table"><caption>'+visible.length+' pazienti · ordine alfabetico</caption><thead><tr><th scope="col">Paziente</th><th scope="col">Ultimo check-in</th><th scope="col">Registrato il</th><th scope="col">Azioni rapide</th></tr></thead><tbody>'+rows+'</tbody></table>':q?'<p class="notice">Nessun paziente corrisponde alla ricerca.</p>':patientFilter?'<p class="notice">Nessun paziente per questo indicatore.</p>':'<p class="notice">Nessun paziente assegnato all’account '+esc(me?.full_name||'attuale')+'. Le associazioni sono gestite in Amministrazione.</p>';
   highlightPatient();
   document.querySelectorAll('.patient[data-id]').forEach(x=>{x.tabIndex=0;x.onclick=()=>openPatient(x.dataset.id);x.onkeydown=e=>{if(e.target===x&&['Enter',' '].includes(e.key)){e.preventDefault();openPatient(x.dataset.id);}};});
   document.querySelectorAll('.patient-quick [data-action]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const row=b.closest('.patient'),id=row?.dataset.id,action=b.dataset.action;if(!id)return;if(action==='file')return sendPatientFile(id);await openPatient(id);document.querySelector('#patientDetail [data-tab="chat"]')?.click();setTimeout(()=>{const target=action==='message'?$('chatText'):$('noticeTitle');target?.focus();target?.scrollIntoView({behavior:'smooth',block:'center'});},60);});
@@ -1090,6 +1092,7 @@ const voiceController=initVoiceCommands({$,sb,getPatients:()=>patients,getSelect
 const welcome=$('patientVoiceWelcome');
 $('patientVoiceYes').onclick=()=>voiceController.answerWelcomeYes();
 $('patientVoiceNo').onclick=()=>voiceController.answerWelcomeNo();
+$('patientVoiceClose').onclick=()=>voiceController.answerWelcomeNo();
 $('patientVoiceRetry').onclick=()=>voiceController.retryWelcome();
 $('patientVoiceOpen').onclick=()=>voiceController.openWelcomeName($('patientVoiceName').value.trim());
 $('patientVoiceName').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('patientVoiceOpen').click();}};
@@ -1118,4 +1121,5 @@ function ensureDashboardChatRealtime(){
 }
 
 }
+
 
