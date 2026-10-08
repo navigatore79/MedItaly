@@ -1,3 +1,4 @@
+import './visit-slots.js';
 import './chat-audio.js';
 import './voice-calls.js';
 import { renderQuestionnaireManager } from './care-questionnaires.js';
@@ -788,6 +789,7 @@ async function dispatch(outboxId){
 }
 
 async function loadAppointments(){
+  if(me?.role==='Clinician')MeditalyVisits.doctorPanel({root:$('visitSettings'),sb,getUserId:()=>me?.id}).catch(e=>out($('visitSettings'),e.message));
   const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
   const [{data:rows,error},{data:links}]=await Promise.all([
     sb.from('appointments').select('*').eq('clinician_id',uid).order('created_at',{ascending:false}),
@@ -801,10 +803,11 @@ async function loadAppointments(){
   const statusLabel={Requested:'Richiesto dal paziente',Proposed:'Proposto',Confirmed:'Confermato',Rejected:'Rifiutato',Cancelled:'Annullato',Completed:'Completato'};
   if($('appointmentList'))$('appointmentList').innerHTML=(rows||[]).map(x=>{
     const when=x.proposed_start?new Date(x.proposed_start).toLocaleString('it-IT'):(x.requested_date?esc(x.requested_date)+(x.requested_time_window?' · '+esc(x.requested_time_window):''):'Data da concordare');
-    const actions=x.status==='Requested'?'<div class="row" style="margin-top:8px"><button class="btn secondary appt-prefill" data-id="'+x.id+'" data-patient="'+x.patient_id+'">Proponi data</button><button class="btn danger appt-reject" data-id="'+x.id+'">Rifiuta</button></div>':x.status==='Proposed'?'<span class="small muted">In attesa della risposta del paziente.</span>':'';
+    const actions=x.booked_slot&&x.status==='Confirmed'?'<div class="row"><button class="btn secondary visit-complete" data-id="'+x.id+'">Segna completata</button><button class="btn secondary visit-cancel" data-id="'+x.id+'">Annulla visita</button></div>':x.status==='Requested'?'<div class="row" style="margin-top:8px"><button class="btn secondary appt-prefill" data-id="'+x.id+'" data-patient="'+x.patient_id+'">Proponi data</button><button class="btn danger appt-reject" data-id="'+x.id+'">Rifiuta</button></div>':x.status==='Proposed'?'<span class="small muted">In attesa della risposta del paziente.</span>':'';
     return '<div class="item"><div class="row between"><div><b>'+esc(map[x.patient_id]||'Paziente')+'</b><div class="small muted">'+esc(statusLabel[x.status]||x.status)+' · '+when+'</div></div><span class="pill">'+esc(x.location_type==='video'?'Video':x.location_type==='phone'?'Telefonica':'In presenza')+'</span></div>'+(x.reason?'<div style="margin-top:5px">'+esc(x.reason)+'</div>':'')+actions+'</div>';
   }).join('')||'<p class="muted">Nessun appuntamento o richiesta.</p>';
 
+  document.querySelectorAll('.visit-complete,.visit-cancel').forEach(b=>b.onclick=async()=>{if(!confirm(b.classList.contains('visit-cancel')?'Annullare questa visita?':'Segnare questa visita come completata?'))return;b.disabled=true;const {error}=await sb.rpc('change_visit_booking',{p_appointment:b.dataset.id,p_action:b.classList.contains('visit-cancel')?'cancel':'complete'});if(error){alert(error.message);b.disabled=false;}else loadAppointments();});
   document.querySelectorAll('.appt-prefill').forEach(b=>b.onclick=()=>{
     if($('apptPatient'))$('apptPatient').value=b.dataset.patient;
     if($('apptReason'))$('apptReason').value='Riscontro alla richiesta del paziente';
@@ -1111,7 +1114,8 @@ function ensureDashboardChatRealtime(){
   bubble.innerHTML=(data.audio_path?MeditalyAudio.html(data):esc(data.body))+'<div class="small muted">'+fmt(data.sent_at)+'</div>';
   const box=$('chatBox');if(!box.querySelector('[data-chat-id]'))box.innerHTML='';box.append(bubble);MeditalyAudio.mountPlayers(bubble,sb);box.scrollTop=box.scrollHeight;
   if(!$('chat').classList.contains('hidden'))await sb.from('chat_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('id',data.id).eq('recipient_id',owner);
- }).subscribe();
+ }).on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:'clinician_id=eq.'+owner},()=>{if(chatUserId===owner&&!$('appointments')?.classList.contains('hidden'))loadAppointments().catch(()=>{});}).subscribe();
 }
 
 }
+
