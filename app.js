@@ -116,9 +116,13 @@ $('registerDoctor').onclick=async()=>{const full=$('rName').value.trim(),email=$
 
 $('login').onclick=async()=>{
   out($('authMsg'),'Accesso in corso…',true);
-  const{error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('pass').value});
-  if(error)return out($('authMsg'),error.message);
-  boot();
+  const button=$('login');button.disabled=true;
+  try{
+    const{error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('pass').value});
+    if(error)throw error;
+    await boot();
+  }catch(error){out($('authMsg'),error.message||'Accesso non riuscito. Riprova.');}
+  finally{button.disabled=false;}
 };
 $('logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 async function persistClinicianLegal(){const raw=localStorage.getItem('meditaly_clinician_pending_legal');if(!raw)return;const u=(await sb.auth.getUser()).data.user;if(!u)return;try{const p=JSON.parse(raw);const rows=[{user_id:u.id,document_key:'privacy-clinician',document_version:p.version||LEGAL_VERSION,action:'acknowledged'},{user_id:u.id,document_key:'terms',document_version:p.version||LEGAL_VERSION,action:'accepted'}];const{error}=await sb.from('legal_acceptances').insert(rows);if(error)throw error;localStorage.removeItem('meditaly_clinician_pending_legal');}catch(e){console.warn('Clinician legal acceptance pending',e)}}
@@ -1087,7 +1091,7 @@ $('patientVoiceRetry').onclick=()=>voiceController.retryWelcome();
 $('patientVoiceOpen').onclick=()=>voiceController.openWelcomeName($('patientVoiceName').value.trim());
 $('patientVoiceName').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('patientVoiceOpen').click();}};
 welcome.addEventListener('cancel',()=>{voiceController.stopWelcomeFlow();voiceController.stop();});
-const{data:{session}}=await sb.auth.getSession();if(session)boot();
+const{data:{session}}=await sb.auth.getSession();if(session)boot().catch(error=>out($('authMsg'),error.message||'Impossibile caricare la dashboard. Riprova.'));
 if('serviceWorker' in navigator && location.protocol==='https:')navigator.serviceWorker.register('/clinica-sw.js').catch(error=>console.warn('Installazione app non disponibile',error));
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();clinicianInstallPrompt=event;updateInstallButton();});
 installButton.onclick=async()=>{
@@ -1095,7 +1099,6 @@ installButton.onclick=async()=>{
   alert(/iPhone|iPad|iPod/.test(navigator.userAgent)?'Su iPhone: apri Safari, tocca Condividi e poi “Aggiungi alla schermata Home”.':'Per installare la dashboard apri il menu del browser e scegli “Installa app” o “Aggiungi alla schermata Home”, se disponibile.');
 };
 window.addEventListener('appinstalled',updateInstallButton);
-}
 
 function ensureDashboardChatRealtime(){
  if(dashboardChatChannel||!chatUserId)return;
@@ -1109,4 +1112,6 @@ function ensureDashboardChatRealtime(){
   const box=$('chatBox');if(!box.querySelector('[data-chat-id]'))box.innerHTML='';box.append(bubble);MeditalyAudio.mountPlayers(bubble,sb);box.scrollTop=box.scrollHeight;
   if(!$('chat').classList.contains('hidden'))await sb.from('chat_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('id',data.id).eq('recipient_id',owner);
  }).subscribe();
+}
+
 }
