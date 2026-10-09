@@ -1,0 +1,75 @@
+/* Smartphone presentation; clinical actions and desktop layout are unchanged. */
+@media (max-width:700px) {
+  body:has(#portal:not(.hidden)) .wrap{padding:0 14px calc(104px + env(safe-area-inset-bottom))}
+  body:has(#portal:not(.hidden)) .top{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0 -14px;padding:16px 14px}
+  body:has(#portal:not(.hidden)) .brand-lockup{min-width:0;gap:10px}
+  body:has(#portal:not(.hidden)) .brand{font-size:23px}
+  body:has(#portal:not(.hidden)) .brand-lockup .muted{font-size:11px;line-height:1.4}
+  body:has(#portal:not(.hidden)) .top>.row{width:100%;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+  body:has(#portal:not(.hidden)) .top>.row .btn{flex:1 1 auto;min-height:44px;font-size:13px}
+  body:has(#portal:not(.hidden)) .top>.row .btn.secondary{background:#edf5ef;border-color:#d5e4d9;color:#285741}
+  body:has(#portal:not(.hidden)) .workspace-switch{order:0;width:100%;margin:0}
+  #portal .beta{margin:12px 0 16px;padding:10px 12px;font-size:11px;line-height:1.5;border-radius:10px}
+  #portal .view>.card,#portal .overview-columns>.card,#portal #patientDetail>.card{padding:16px;border-radius:16px;box-shadow:0 4px 16px #244d4208}
+  #portal .hero{gap:12px;padding:0 0 18px;margin-bottom:16px}
+  #portal .hero h1{font-size:26px;line-height:1.15;margin:8px 0;max-width:22ch}
+  #portal .hero p{font-size:14px;line-height:1.5;margin-bottom:0}
+  #portal .hero .btn{min-height:46px;border-radius:12px}
+  #portal .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0;background:transparent;border:0;margin-bottom:18px}
+  #portal .kpi{min-width:0;min-height:108px;padding:13px;text-align:left;border:1px solid #d5e4d9;border-radius:14px;background:#edf5ef;font-size:12px;line-height:1.35}
+  #portal .kpi b{font-size:28px;line-height:1.1;margin:7px 0 4px}
+  #portal .kpi small{font-size:11px;line-height:1.4}
+  #portal .kpi:last-child{grid-column:1/-1;min-height:90px}
+  #portal .overview-columns{gap:14px}
+  #portal .attention-heading{flex-wrap:wrap;gap:10px;align-items:flex-start}
+  #portal .attention.priority-row{grid-template-columns:minmax(0,1fr);gap:10px;padding:14px 0}
+  #portal .priority-row .priority-person,#portal .priority-row .priority-reason,#portal .priority-row .priority-actions{grid-column:1;grid-row:auto;min-width:0}
+  #portal .priority-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:stretch}
+  #portal .priority-actions .btn{flex:1 1 120px;min-height:44px}
+  #portal .two,#portal .three{grid-template-columns:minmax(0,1fr);gap:18px}
+  #portal .row{flex-wrap:wrap;min-width:0}
+  #portal h2{font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+  #portal h3{font-size:18px;line-height:1.3}
+  #portal p,#portal .small,#portal .item{overflow-wrap:anywhere}
+  #portal .btn{min-height:44px;max-width:100%;border-radius:10px}
+  #portal .field input,#portal .field select,#portal .field textarea{min-width:0;max-width:100%;font-size:16px}
+  #portal .field label{display:block;margin-bottom:6px;line-height:1.4}
+  #portal .patient-detail-toolbar{gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:12px}
+  #portal .patient-detail-toolbar span{font-size:9px}
+  #portal .patient-detail-heading{align-items:flex-start;gap:12px}
+  #portal .patient-detail-heading h2{font-size:25px;margin:6px 0}
+  #portal .patient-detail-heading>div{min-width:0;max-width:100%}
+  #portal .patient-table caption{display:block;width:100%;line-height:1.5}
+  #portal .patient-quick{gap:6px}
+  #portal .patient-quick button{flex:1 1 auto;min-height:44px;padding:10px 6px;white-space:nowrap;font-size:11px}
+  #portal .tabs{flex-wrap:nowrap;overflow-x:auto;gap:7px;padding:8px 0 10px;margin:14px 0;scroll-padding-inline:8px;overscroll-behavior-x:contain}
+  #portal .tabs button{flex:0 0 auto;min-height:44px;padding:10px 13px;white-space:nowrap;border-radius:10px}
+  #portal .msgbox{height:clamp(220px,40dvh,360px);min-height:220px;padding:12px;border-radius:12px}
+  #portal .msg{max-width:92%;overflow-wrap:anywhere}
+  #portal .msg audio{max-width:100%;width:100%}
+  #portal #chat .row>.btn{flex:1 1 130px}
+  #portal #chatText,#portal #messageBody{scroll-margin:20px;min-height:110px}
+  #portal .delivery-tools{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  #portal .delivery-tools select,#portal .delivery-tools input{min-width:0;max-width:none;width:100%;font-size:16px;min-height:44px}
+  #portal .delivery-chips button{min-height:44px}
+  #portal .voice-panel .voice-header{padding:14px;gap:8px}
+  #portal .voice-panel .voice-brand{gap:8px;min-width:0}
+  #portal .voice-panel .voice-brand h2{font-size:21px}
+  #portal .voice-panel .voice-brand .eyebrow{font-size:9px;letter-spacing:.04em}
+  #portal .voice-panel .voice-close{min-height:44px;padding:8px}
+  #portal .voice-panel .voice-dashboard{padding:20px 16px;gap:16px}
+  #portal .voice-panel .voice-stage{gap:14px}
+  #portal .voice-panel .voice-orb{width:48px;height:48px}
+  #portal .voice-panel .voice-stage h3{font-size:21px}
+  #portal .voice-panel .voice-content{padding:16px}
+  .patient-voice-welcome .welcome-content{padding:20px}
+  .patient-voice-welcome .welcome-content h2{font-size:25px}
+  .patient-voice-welcome .welcome-actions{grid-template-columns:minmax(0,1fr)}
+  #portal .nav{position:fixed;inset:auto 0 0;z-index:30;display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;margin:0;padding:9px 12px calc(9px + env(safe-area-inset-bottom));border-top:1px solid #c7dccf;background:#f8fcf9;border-radius:16px 16px 0 0;box-shadow:0 -5px 20px #244d4214;overflow-x:auto;scroll-padding-inline:12px;overscroll-behavior-x:contain}
+  #portal .nav button{flex:0 0 auto;min-width:90px;max-width:124px;min-height:52px;padding:10px 12px;border:1px solid transparent;border-radius:11px;font-size:12px;line-height:1.3;text-align:center;white-space:normal}
+  #portal .nav button.on{background:#e0eee5;border-color:#c1d8ca;color:#23563d}
+  #portal .nav button:focus-visible,#portal .tabs button:focus-visible{outline:2px solid #327454;outline-offset:-2px}
+  body.clinician-keyboard-open #portal .nav{display:none}
+  body.clinician-keyboard-open:has(#portal:not(.hidden)) .wrap{padding-bottom:24px}
+}
+@media (max-width:360px){#portal .hero h1{font-size:24px}#portal .kpi{padding:11px;font-size:11px}.patient-voice-welcome .welcome-content{padding:16px}}
