@@ -18,6 +18,7 @@ const POST_PCI_SOURCES=[
 export async function renderQuestionnaireManager(sb,patient,clinician){
  const detail=document.getElementById('patientDetail');if(!detail)return;
  const tab=document.createElement('button');tab.dataset.tab='careQuestionnaires';tab.textContent='Questionari';detail.querySelector('.tabs').append(tab);
+ const received=document.createElement('section');received.className='notice';received.setAttribute('role','status');received.textContent='Verifica questionari ricevuti…';detail.querySelector('.tabs').before(received);
  const panel=document.createElement('div');panel.className='tabp hidden';panel.id='careQuestionnaires';detail.querySelector('.card').append(panel);
  panel.innerHTML='<h3>Questionario quotidiano del paziente</h3><p>Assegna una versione verificata da te. Il modello post-angioplastica è una bozza basata sui temi delle linee guida ESC e del consenso SICI-GISE/SICOA, senza punteggio clinico validato.</p><label class="field">Titolo<input id="cqTitle" value="Controllo quotidiano post-angioplastica" maxlength="150"></label><label class="field">Versione<input id="cqVersion" value="1" maxlength="30"></label><div id="cqEditor"></div><button class="btn secondary" id="cqAdd">Aggiungi domanda</button> <button class="btn" id="cqAssign">Assegna al paziente</button><p id="cqStatus" role="status"></p><h3>Versioni assegnate e risposte</h3><div id="cqHistory"></div>';
  const draft=structuredClone(POST_PCI_QUESTIONS);
@@ -36,14 +37,19 @@ export async function renderQuestionnaireManager(sb,patient,clinician){
  const refresh=async()=>{
   const host=panel.querySelector('#cqHistory');const {data,error}=await sb.from('care_questionnaire_assignments').select('*').eq('patient_id',patient).eq('clinician_id',clinician).order('created_at',{ascending:false});
   if(!panel.isConnected)return;host.replaceChildren();if(error){host.textContent='Impossibile caricare i questionari: '+error.message;return;}
+  let total=0,latestDate='';
   for(const a of data||[]){
    const card=document.createElement('section');card.className='card';const h=document.createElement('h4');h.textContent=a.title+' · versione '+a.version_label+(a.active?' · attivo':' · chiuso');card.append(h);
    if(a.active){const disable=document.createElement('button');disable.className='btn secondary';disable.textContent='Chiudi assegnazione';disable.onclick=async()=>{const r=await sb.from('care_questionnaire_assignments').update({active:false}).eq('id',a.id);if(r.error)panel.querySelector('#cqStatus').textContent=r.error.message;else refresh();};card.append(disable);}
    const responses=await sb.from('care_questionnaire_responses').select('*').eq('assignment_id',a.id).order('response_date',{ascending:false}).limit(30);
    if(responses.error){const p=document.createElement('p');p.textContent='Risposte non disponibili.';card.append(p);}
-   for(const response of responses.data||[]){const d=document.createElement('details'),summary=document.createElement('summary');summary.textContent=response.response_date;d.append(summary);a.questions.forEach(q=>{const p=document.createElement('p');p.textContent=q.label+': '+(response.answers[q.id]||'—');d.append(p);});card.append(d);}
+   total+=(responses.data||[]).length;for(const r of responses.data||[])if(r.created_at>latestDate)latestDate=r.created_at;
+   if(!responses.error&&!responses.data?.length){const p=document.createElement('p');p.textContent='Nessuna risposta ancora inviata dal paziente.';card.append(p);}
+   for(const response of responses.data||[]){const d=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Compilato il '+response.response_date+' · ricevuto '+new Date(response.created_at).toLocaleString('it-IT');d.append(summary);a.questions.forEach(q=>{const p=document.createElement('p');p.textContent=q.label+': '+(response.answers[q.id]||'—');d.append(p);});card.append(d);}
    host.append(card);
   }
+  received.replaceChildren();const text=document.createElement('span');text.textContent=total?'Questionari ricevuti: '+total+' · ultimo invio '+new Date(latestDate).toLocaleString('it-IT')+' ':'Nessuna risposta ricevuta ai questionari assegnati. ';received.append(text);
+  const open=document.createElement('button');open.type='button';open.className='btn secondary';open.textContent='Apri questionari e risposte';open.onclick=()=>detail.querySelector('[data-tab="careQuestionnaires"]')?.click();received.append(open);
  };
  panel.querySelector('#cqAssign').onclick=async e=>{
   const title=panel.querySelector('#cqTitle').value.trim();const status=panel.querySelector('#cqStatus');
@@ -52,4 +58,5 @@ export async function renderQuestionnaireManager(sb,patient,clinician){
   status.textContent=error?'Assegnazione non riuscita: '+error.message:'Questionario assegnato. Il paziente lo trova in Il tuo percorso → Questionari.';if(!error)await refresh();
  };
  await refresh();
+ const timer=setInterval(()=>{if(panel.isConnected&&document.visibilityState==='visible')void refresh();else if(!panel.isConnected)clearInterval(timer);},30000);
 }
