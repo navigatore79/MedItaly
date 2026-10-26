@@ -1,3 +1,4 @@
+import {renderCenterAdmin} from './center-admin.js';
 import './visit-slots.js';
 import './chat-audio.js';
 import './voice-calls.js';
@@ -365,6 +366,7 @@ async function loadAdmin(){
   <section class="admin-panel" aria-labelledby="adminApplicationsTitle"><div class="admin-panel-head"><div><h2 id="adminApplicationsTitle">Abilitazioni mediche</h2><p>Verifica le richieste di accesso dei professionisti.</p></div><span class="admin-count">${pending} da valutare</span></div><div class="admin-list">${applications}</div></section></div>
   <section class="admin-panel" aria-labelledby="adminLinksTitle"><div class="admin-panel-head"><div><h2 id="adminLinksTitle">Associazioni attive</h2><p>Gestisci l'accesso dei medici ai percorsi paziente.</p></div><span class="admin-count">${activeLinks.length}</span></div><div class="admin-list">${associations}</div></section>
   <section class="admin-panel admin-account-panel" aria-labelledby="adminAccountsTitle"><div class="admin-panel-head"><div><h2 id="adminAccountsTitle">Account</h2><p>Stato e ruolo degli utenti registrati.</p></div><span class="admin-count">${people.length}</span></div><div class="admin-list">${accounts}</div></section>`;
+  await renderCenterAdmin({sb,root:box,people,esc});
   box.querySelectorAll('.admin-review').forEach(b=>b.onclick=async()=>{if(!confirm(b.dataset.approve==='true'?'Approvare questa richiesta medico?':'Rifiutare questa richiesta medico?'))return;const {error}=await sb.rpc('admin_review_clinician_application',{p_application:b.dataset.id,p_approve:b.dataset.approve==='true'});if(error)alert(error.message);else loadAdmin();});
   box.querySelectorAll('.admin-account').forEach(b=>b.onclick=async()=>{if(!confirm('Confermare la modifica dello stato account?'))return;const {error}=await sb.rpc('admin_set_account_active',{p_user:b.dataset.id,p_active:b.dataset.active==='true'});if(error)alert(error.message);else loadAdmin();});
   $('adminAddLink').onclick=async()=>{

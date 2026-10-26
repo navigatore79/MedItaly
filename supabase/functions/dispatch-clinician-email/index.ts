@@ -6,45 +6,33 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const dashboard = "https://med-italy.vercel.app/";
 const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] || ch));
-function romeMidnight(day: string) {
-  const [year, month, date] = day.split("-").map(Number);
-  const desired = Date.UTC(year, month - 1, date);
-  const formatter = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
-  let guess = desired;
-  for (let i = 0; i < 3; i++) {
-    const parts = Object.fromEntries(formatter.formatToParts(new Date(guess)).map(part => [part.type, part.value]));
-    const observed = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
-    guess -= observed - desired;
-  }
-  return new Date(guess).toISOString();
+function romeCutoff(day: string) {
+ const [y,m,d]=day.split('-').map(Number), desired=Date.UTC(y,m-1,d,20);
+ const formatter=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+ let guess=desired;
+ for(let i=0;i<3;i++){const p=Object.fromEntries(formatter.formatToParts(new Date(guess)).map(x=>[x.type,x.value]));guess-=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-desired;}
+ return new Date(guess).toISOString();
 }
-async function dailyReport(clinicianId: string, patientIds: string[], reportDay: string) {
-  const nextDay = new Date(Date.parse(reportDay + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
-  const start = romeMidnight(reportDay), end = romeMidnight(nextDay);
-  const [profiles, checkins, intakes, chats, journal] = await Promise.all([
-    db.from("profiles").select("id,full_name").in("id", patientIds),
-    db.from("patient_daily_checkins").select("patient_id,status").in("patient_id", patientIds).eq("checkin_date", reportDay),
-    db.from("medication_intakes").select("patient_id,status").in("patient_id", patientIds).eq("intake_date", reportDay),
-    db.from("chat_messages").select("sender_id,recipient_id").gte("sent_at", start).lt("sent_at", end).or(`sender_id.eq.${clinicianId},recipient_id.eq.${clinicianId}`).limit(2000),
-    db.from("patient_journal_entries").select("patient_id").eq("shared_with", clinicianId).gte("shared_at", start).lt("shared_at", end).limit(1000),
-  ]);
-  for (const result of [profiles, checkins, intakes, chats, journal]) if (result.error) throw result.error;
-  const names = new Map((profiles.data || []).map(p => [p.id, p.full_name || "Paziente"]));
-  const rows = patientIds.map(id => {
-    const checkin = (checkins.data || []).filter(x => x.patient_id === id).length;
-    const intake = (intakes.data || []).filter(x => x.patient_id === id).length;
-    const messages = (chats.data || []).filter(x => (x.sender_id === id && x.recipient_id === clinicianId) || (x.sender_id === clinicianId && x.recipient_id === id)).length;
-    const shared = (journal.data || []).filter(x => x.patient_id === id).length;
-    const labels = [checkin && "check-in", intake && `${intake} registrazioni terapia`, messages && `${messages} messaggi`, shared && `${shared} condivisioni diario`].filter(Boolean) as string[];
-    return { id, name: names.get(id) || "Paziente", labels, messages };
-  }).filter(x => x.labels.length).sort((a, b) => a.name.localeCompare(b.name, "it"));
-  const urlFor = (id: string, tab: string) => `${dashboard}?patient=${encodeURIComponent(id)}&tab=${tab}`;
-  const text = `Riepilogo Meditaly del ${reportDay} · ${rows.length} pazienti con interazioni (${patientIds.length} collegati).\n\n` +
-    (rows.length ? rows.map(x => `${x.name}: ${x.labels.join(", ")}\nApri scheda: ${urlFor(x.id, "summary")}\n${x.messages ? `Rispondi nella chat: ${urlFor(x.id, "chat")}\n` : ""}`).join("\n") : "Nessuna interazione registrata oggi.\n") +
-    "\nI dettagli clinici sono disponibili soltanto dopo l'accesso alla dashboard. Le registrazioni sono dichiarazioni dei pazienti.";
-  const items = rows.map(x => `<tr><td style="padding:12px;border-bottom:1px solid #e4ece6"><strong>${escapeHtml(x.name)}</strong><br><span style="color:#587061">${escapeHtml(x.labels.join(" · "))}</span></td><td style="padding:12px;border-bottom:1px solid #e4ece6;white-space:nowrap"><a href="${urlFor(x.id, "summary")}" style="color:#276044;font-weight:700">Apri scheda</a>${x.messages ? `<br><a href="${urlFor(x.id, "chat")}" style="color:#276044;font-weight:700">Rispondi</a>` : ""}</td></tr>`).join("");
-  const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Riepilogo Meditaly</title></head><body style="font-family:Arial,sans-serif;background:#f4f8f5;color:#203c2c;padding:20px"><main style="max-width:620px;margin:auto;background:#fff;border:1px solid #dce9df;border-radius:16px;padding:24px"><h1 style="font-size:23px;margin:0 0 8px">Riepilogo quotidiano</h1><p>${escapeHtml(reportDay)} · ${rows.length} pazienti con interazioni</p>${rows.length ? `<table role="presentation" style="border-collapse:collapse;width:100%">${items}</table>` : "<p>Nessuna interazione registrata oggi.</p>"}<p style="color:#5d7664;font-size:13px">Apri i collegamenti dopo aver effettuato l'accesso. Dettagli clinici e messaggi sono disponibili solo nella dashboard protetta.</p></main></body></html>`;
-  return { text, html };
+const activityLabels: Record<string,string>={patient_daily_checkins:'aggiornamenti di salute',medication_intakes:'registrazioni terapia',care_questionnaire_responses:'questionari',medical_reports:'referti caricati',patient_vaccine_declarations:'aggiornamenti vaccinazioni',appointments:'aggiornamenti appuntamenti',patient_journal_entries:'condivisioni diario',chat_messages:'messaggi dal paziente'};
+async function dailyReport(clinicianId: string,patientIds: string[],reportDay: string){
+ const previous=new Date(Date.parse(reportDay+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+ const start=romeCutoff(previous),end=romeCutoff(reportDay);
+ const profiles=await db.from('profiles').select('id,full_name').in('id',patientIds);if(profiles.error)throw profiles.error;
+ const names=new Map((profiles.data||[]).map(p=>[p.id,p.full_name||'Paziente']));
+ const counts=new Map<string,Record<string,number>>();
+ for(let offset=0;;offset+=1000){
+  const result=await db.from('clinician_patient_activity').select('id,patient_id,kind').eq('clinician_id',clinicianId).gte('occurred_at',start).lt('occurred_at',end).order('id').range(offset,offset+999);
+  if(result.error)throw result.error;
+  for(const event of result.data||[]){if(!names.has(event.patient_id))continue;const n=counts.get(event.patient_id)||{};n[event.kind]=(n[event.kind]||0)+1;counts.set(event.patient_id,n);}
+  if((result.data||[]).length<1000)break;
+ }
+ const rows=[...counts].map(([id,n])=>({id,name:names.get(id)||'Paziente',labels:Object.entries(n).map(([kind,total])=>`${total} ${activityLabels[kind]||'attività'}`)})).sort((a,b)=>a.name.localeCompare(b.name,'it'));
+ const period=`Dalle 20:00 del ${previous} alle 20:00 del ${reportDay} (ora italiana)`;
+ const link=(id:string)=>`${dashboard}?patient=${encodeURIComponent(id)}&tab=summary`;
+ const caveat='Sono incluse le attività ricevute dal server nel periodo, anche se registrate prima offline. Il diario privato non condiviso resta escluso. I dettagli sono nella dashboard protetta.';
+ const text=`Riepilogo Meditaly · ${period}\n\n`+(rows.length?rows.map(x=>`${x.name}: ${x.labels.join(', ')}\n${link(x.id)}`).join('\n\n'):'Nessuna attività ricevuta nel periodo.')+`\n\n${caveat}`;
+ const html=`<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Riepilogo Meditaly</title></head><body style="font-family:Arial,sans-serif;color:#203c2c;padding:24px"><h1>Riepilogo quotidiano</h1><p>${escapeHtml(period)}</p>${rows.length?rows.map(x=>`<p><strong>${escapeHtml(x.name)}</strong><br>${escapeHtml(x.labels.join(' · '))}<br><a href="${link(x.id)}">Apri scheda</a></p>`).join(''):'<p>Nessuna attività ricevuta nel periodo.</p>'}<p>${escapeHtml(caveat)}</p></body></html>`;
+ return {text,html};
 }
 
 function response(body: object, status = 200) {
@@ -67,6 +55,7 @@ async function dispatch(row: any, apiKey: string, sender: string) {
   if (linkError) throw linkError;
   const patients = (links || []).map(x => x.patient_id);
   if (!patients.length) return "skip";
+  if(row.kind!=="daily_report"&&Date.now()-Date.parse(row.created_at)>86400000)return "skip";
 
   let subject: string;
   let content: string;
@@ -79,6 +68,13 @@ async function dispatch(row: any, apiKey: string, sender: string) {
     if (!checkin || checkin.status !== "red" || !patients.includes(checkin.patient_id)) return "skip";
     subject = "Meditaly · Segnalazione da valutare";
     content = `Un paziente collegato ha indicato di non sentirsi bene. Apri la panoramica clinica per vedere la segnalazione e i dettagli nel portale protetto.\n\n${dashboard}\n\nQuesta email è una notifica e non sostituisce i canali di emergenza.`;
+  } else if(row.kind === "chat_message") {
+    const messageId=row.event_key.split(":")[1];
+    const {data:message,error}=await db.from("chat_messages").select("sender_id,recipient_id").eq("id",messageId).maybeSingle();
+    if(error)throw error;
+    if(!message || message.recipient_id!==row.clinician_id || !patients.includes(message.sender_id))return "skip";
+    subject="Meditaly · Nuovo messaggio da un paziente";
+    content=`Hai ricevuto un nuovo messaggio. Accedi alla dashboard per leggerlo e rispondere.\n\n${dashboard}?patient=${encodeURIComponent(message.sender_id)}&tab=chat`;
   } else if (row.kind === "daily_report") {
     subject = row.payload_subject || `Meditaly · Riepilogo del ${row.report_day}`;
     if (row.payload_text) { content = row.payload_text; html = row.payload_html || undefined; }
@@ -121,10 +117,11 @@ Deno.serve(async req => {
 
   const apiKey = Deno.env.get("RESEND_API_KEY") || "";
   const sender = Deno.env.get("RESEND_FROM_EMAIL") || "";
-  if (!apiKey || !sender) return response({ error: "RESEND_NOT_CONFIGURED" }, 503);
+
 
   const { error: queueError } = await db.rpc("enqueue_clinician_daily_email_reports");
   if (queueError) return response({ error: "QUEUE_ERROR" }, 500);
+  if (!apiKey || !sender) return response({ error: "RESEND_NOT_CONFIGURED", missing: [!apiKey&&"RESEND_API_KEY",!sender&&"RESEND_FROM_EMAIL"].filter(Boolean) }, 503);
   const { data: rows, error: claimError } = await db.rpc("claim_clinician_email_outbox");
   if (claimError) return response({ error: "CLAIM_ERROR" }, 500);
 
@@ -133,13 +130,14 @@ Deno.serve(async req => {
     try {
       const result = await dispatch(row, apiKey, sender);
       if (result === "skip") {
-        await db.from("clinician_email_outbox").update({ status: "sent", sent_at: new Date().toISOString() })
+        await db.from("clinician_email_outbox").update({ status: "skipped", last_error: "RECIPIENT_OR_EVENT_NO_LONGER_ELIGIBLE", last_error_at: new Date().toISOString() })
           .eq("id", row.id).eq("status", "processing");
         results.skipped++;
       } else results.sent++;
-    } catch (_error) {
+    } catch (error) {
       await db.from("clinician_email_outbox")
         .update({ status: row.attempts >= 8 ? "failed" : "pending",
+          last_error: error instanceof Error && /^RESEND_[A-Z0-9_]+$/.test(error.message) ? error.message : "DELIVERY_FAILED", last_error_at: new Date().toISOString(),
           next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString() })
         .eq("id", row.id).eq("status", "processing");
       results.retry++;
