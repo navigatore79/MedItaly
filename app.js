@@ -852,7 +852,7 @@ $('proposeAppointment').onclick=async()=>{
   });
   if(error)return out($('apptMsg'),error.message);
   const pushed=data?.outbox_id?await dispatch(data.outbox_id):false;
-  out($('apptMsg'),pushed?'Proposta inviata al paziente.':'Proposta registrata; la notifica push non è stata consegnata.',pushed);
+  out($('apptMsg'),pushed?'Proposta registrata. Notifica accettata dal servizio push; la ricezione sul telefono non è ancora verificata.':'Proposta registrata e disponibile nell’app. Invio push non confermato: verificare registrazione e permessi del dispositivo.',pushed);
   $('apptStart').value='';$('apptReason').value='';$('apptNote').value='';loadAppointments();
 };
 
