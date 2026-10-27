@@ -1,7 +1,7 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.116.0';
 const db=createClient('https://ejlhgtodmcadmdhbujkf.supabase.co','sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM');
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let user=null,current=null,tab='requests',search='',loadVersion=0;
+let user=null,current=null,tab='requests',search='',loadVersion=0,managedCenters=[];
 const say=s=>$('message').textContent=s,fail=e=>say(e?.message||'Operazione non disponibile. Riprova.');
 const date=s=>new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',timeZone:'Europe/Rome'}).format(new Date(s));
 $('loginForm').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;say('Accesso in corso…');try{const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;$('password').value='';await boot();}catch(e){fail(e);}finally{b.disabled=false;}};
@@ -19,18 +19,24 @@ function code(factor){
 }
 async function boot(){
  say('');$('workspace').hidden=true;const {data:{user:u},error}=await db.auth.getUser();if(!u){if(error&&error.name!=='AuthSessionMissingError')throw error;return;}if(error)throw error;
- user=u;$('access').hidden=true;$('logout').hidden=false;const assurance=await db.auth.mfa.getAuthenticatorAssuranceLevel();if(assurance.error)throw assurance.error;
- if(assurance.data.currentLevel!=='aal2'){await mfa();return;}$('mfa').hidden=true;
- const [membership,profile,centers]=await Promise.all([db.from('center_managers').select('center_id,active').eq('user_id',user.id).eq('active',true),db.from('profiles').select('role,account_active').eq('id',user.id).single(),db.rpc('list_patient_centers')]);
- for(const result of [membership,profile,centers])if(result.error)throw result.error;
- if(!profile.data?.account_active)throw Error('Account non attivo.');
- const ids=new Set(membership.data.map(x=>x.center_id)),list=centers.data.filter(x=>profile.data.role==='Administrator'||ids.has(x.id));
- if(!list.length){say('Il tuo account non ha ancora un centro abilitato. Contatta l’amministratore.');$('dashboard').replaceChildren();return;}
- $('intro').hidden=true;$('workspace').hidden=false;$('center').innerHTML=list.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');$('center').closest('label').hidden=list.length===1;
+ user=u;$('access').hidden=true;$('logout').hidden=false;
+ const previous=$('center').value;
+ const {data:list,error:centersError}=await db.rpc('list_my_managed_centers');if(centersError)throw centersError;
+ managedCenters=list||[];
+ if(!managedCenters.length){$('mfa').hidden=true;say('Il tuo account non ha ancora un centro abilitato. Contatta l’amministratore.');$('dashboard').replaceChildren();return;}
+ $('intro').hidden=true;$('center').innerHTML=managedCenters.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+ if(managedCenters.some(c=>c.id===previous))$('center').value=previous;
+ $('center').closest('label').hidden=managedCenters.length===1;
  $('center').onchange=()=>{tab='requests';search='';load().catch(fail);};$('refresh').onclick=()=>load().catch(fail);await load();
 }
 async function load(){
- const version=++loadVersion,center=$('center').value;$('dashboard').setAttribute('aria-busy','true');$('dashboard').innerHTML='<p class="loading">Aggiornamento del centro…</p>';$('refresh').disabled=true;say('');
+ const version=++loadVersion,center=$('center').value;
+ const policy=managedCenters.find(c=>c.id===center);if(!policy)throw Error('Centro non abilitato.');
+ $('workspace').hidden=true;$('dashboard').replaceChildren();current=null;
+ if(policy.mfa_required!==false){const assurance=await db.auth.mfa.getAuthenticatorAssuranceLevel();if(version!==loadVersion)return;if(assurance.error)throw assurance.error;if(assurance.data.currentLevel!=='aal2'){await mfa();return;}}
+ if(version!==loadVersion)return;
+ $('mfa').hidden=true;$('workspace').hidden=false;
+ $('dashboard').setAttribute('aria-busy','true');$('dashboard').innerHTML='<p class="loading">Aggiornamento del centro…</p>';$('refresh').disabled=true;say('');
  try{const {data,error}=await db.rpc('center_management_dashboard',{p_center:center});if(version!==loadVersion)return;if(error)throw error;current=data;render();}
  catch(e){if(version===loadVersion){current=null;$('dashboard').replaceChildren();fail(e);}}
  finally{if(version===loadVersion){$('dashboard').setAttribute('aria-busy','false');$('refresh').disabled=false;}}
