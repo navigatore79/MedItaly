@@ -12,6 +12,8 @@ select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting(
 set local role authenticated;
 do $$declare result text;begin
  if has_function_privilege('anon','public.patient_request_center_by_code(text)','EXECUTE') then raise exception 'TEST_ANON_ACCESS'; end if;
+ if has_function_privilege('anon','public.list_my_managed_centers()','EXECUTE') or has_function_privilege('anon','public.admin_set_center_manager_mfa(uuid,uuid,boolean)','EXECUTE') then raise exception 'TEST_ANON_POLICY';end if;
+ begin perform public.admin_set_center_manager_mfa(current_setting('mediapp.fixture_center')::uuid,auth.uid(),false);raise exception 'TEST_SELF_MFA_EXEMPTION';exception when others then if sqlerrm<>'ADMIN_AAL2_REQUIRED' then raise;end if;end;
  begin perform public.patient_request_center_by_code('0');raise exception 'TEST_INVALID_CODE'; exception when others then if sqlerrm<>'CENTER_CODE_INVALID' then raise;end if;end;
  result:=public.patient_request_center_by_code(' 0000 ');
  if result<>'pending' then raise exception 'TEST_NOT_PENDING';end if;
@@ -22,6 +24,15 @@ do $$declare result text;begin
 end$$;
 select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('mediapp.fixture_admin'),'role','authenticated','aal','aal2')::text,true);
 select public.admin_set_center_manager(current_setting('mediapp.fixture_center')::uuid,current_setting('mediapp.fixture_manager')::uuid,true);
+select public.admin_set_center_manager_mfa(current_setting('mediapp.fixture_center')::uuid,current_setting('mediapp.fixture_manager')::uuid,false);
+select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('mediapp.fixture_manager'),'role','authenticated','aal','aal1')::text,true);
+do $$begin
+ if not exists(select 1 from public.list_my_managed_centers() where id=current_setting('mediapp.fixture_center')::uuid and not mfa_required) then raise exception 'TEST_ACCESS_POLICY';end if;
+ perform public.center_management_dashboard(current_setting('mediapp.fixture_center')::uuid);
+end$$;
+-- Restore MFA only for the synthetic membership, leaving other accounts unchanged.
+select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('mediapp.fixture_admin'),'role','authenticated','aal','aal2')::text,true);
+select public.admin_set_center_manager_mfa(current_setting('mediapp.fixture_center')::uuid,current_setting('mediapp.fixture_manager')::uuid,true);
 select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('mediapp.fixture_manager'),'role','authenticated','aal','aal1')::text,true);
 do $$begin
  begin perform public.center_management_dashboard(current_setting('mediapp.fixture_center')::uuid);raise exception 'TEST_MFA_BYPASS';exception when others then if sqlerrm<>'CENTER_MANAGER_AAL2_REQUIRED' then raise;end if;end;
@@ -38,4 +49,4 @@ do $$declare d jsonb;request_id uuid;begin
  begin perform public.center_management_dashboard(gen_random_uuid());raise exception 'TEST_CROSS_CENTER';exception when others then if sqlerrm<>'CENTER_MANAGER_AAL2_REQUIRED' then raise;end if;end;
 end$$;
 rollback;
-select 'PASS: 0000 preserved; authenticated request stays pending; duplicate prevented; MFA and cross-center checks enforced; nonmedical manager can approve; fixtures rolled back' as result;
+select 'PASS: 0000 preserved; authenticated request stays pending; duplicate prevented; individual password-only exception works; default MFA and cross-center checks enforced; nonmedical manager can approve; fixtures rolled back' as result;
