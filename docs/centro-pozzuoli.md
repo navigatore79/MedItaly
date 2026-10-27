@@ -15,3 +15,5 @@ La nuova interfaccia Android per il codice è predisposta nel ramo MEDIapp, al p
 Verifiche:
 - `tests/center-code-access.sql`: codice, richiesta in attesa, assenza di associazione automatica, duplicati, eccezione MFA individuale, autorizzazione del responsabile e isolamento tra centri.
 - `tests/center-mobile.test.cjs`: eseguire con Playwright e Chromium disponibili, eventualmente impostando `PLAYWRIGHT_MODULE` e `CHROMIUM_PATH`; verifica dimensioni, accettazione, ricerca, errori e accessi negati.
+
+Le autorizzazioni per un indirizzo email sono conservate in una tabella privata e applicate soltanto all’utente autenticato con quell’indirizzo confermato in Auth. Sono compatibili anche con account creati direttamente dall’amministrazione. Il centro e la relativa politica MFA restano separati dall’approvazione del ruolo clinico; una revoca successiva non viene annullata da un’autorizzazione già utilizzata.
