@@ -54,6 +54,7 @@
   <link rel="stylesheet" href="/clinica-editoriale.css" />
   <link rel="stylesheet" href="/dashboard-polish.css" />
   <link rel="stylesheet" href="/dashboard-mobile.css" />
+  <link rel="stylesheet" href="/patient-conversations.css" />
   <script src="/dashboard-mobile.js" defer></script>
 </head>
 <body>
@@ -114,18 +115,7 @@
         <button data-view="profile">Profilo pubblico</button>
       </aside>
       <main>
-        <section id="overview" class="view">
-          <div class="hero"><div><span class="eyebrow">PANORAMICA CLINICA</span><h1>Le cure iniziano da ciò che conta</h1><p>Situazioni da valutare, messaggi e prossimi controlli.</p></div><button id="openPatientsFromOverview" class="btn" type="button">Apri pazienti</button></div>
-          <div class="kpis" aria-label="Riepilogo cliccabile">
-            <button class="kpi kpi-link" type="button" data-kpi="all">Pazienti<b id="kPatients">0</b><small>Apri elenco ↗</small></button>
-            <button class="kpi kpi-link" type="button" data-kpi="red_checkin">Malessere riferito<b id="kRed">0</b><small>Vedi pazienti ↗</small></button>
-            <button class="kpi kpi-link" type="button" data-kpi="side_effect">Effetti riferiti<b id="kYellow">0</b><small>Vedi pazienti ↗</small></button>
-            <button class="kpi kpi-link" type="button" data-kpi="repeated_skips">Più dosi non assunte<b id="kIntake">0</b><small>Vedi pazienti ↗</small></button>
-            <button class="kpi kpi-link" type="button" data-kpi="messages">Messaggi non letti<b id="kMsg">0</b><small>Apri messaggi ↗</small></button>
-          </div>
-          <div class="overview-columns"><div class="card section attention-section"><div class="attention-heading"><div><span class="eyebrow">PRIORITÀ</span><h3>Richiedono attenzione</h3></div><span id="attentionCount" class="attention-count">0 segnalazioni</span></div><div id="attentionList" class="list"></div></div>
-          <div class="card section"><span class="eyebrow">OGGI</span><h3>Registrazioni di oggi <span id="reportDay" class="small muted"></span></h3><p class="small muted">Dettaglio dei pazienti collegati, aggiornato in ora italiana.</p><div id="dailyReport" class="list"></div></div></div>
-        </section>
+        <section id="overview" class="view" aria-label="Panoramica delle comunicazioni"><div id="patientConversations"></div></section>
 
         <section id="patients" class="view hidden">
           <div class="card">
