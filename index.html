@@ -67,8 +67,8 @@
   <section id="auth" class="card auth auth-premium">
     <div class="clinica-login-hero"><div><div class="eyebrow">MEDITALY CLINICA</div><h1>La tua salute, seguita ogni giorno.</h1><p>Terapie, controlli, referti e contatto diretto con i pazienti, in un ambiente sanitario chiaro e protetto.</p></div><div class="clinica-heart"><img src="brand-heart.svg" alt="" aria-hidden="true"></div></div>
     <div class="tabs"><button id="tabLogin" class="on">Accedi</button><button id="tabRegister">Registrazione medico</button></div>
-    <div id="loginPane"><p><a href="center.html">Accedi come responsabile del centro, anche non medico →</a></p>
-      <h2>Accesso medico</h2><p class="muted">Accedi con il tuo account Meditaly.</p>
+    <div id="loginPane">
+      <h2>Accesso MEDIapp</h2><p class="muted">Medici, responsabili del centro e amministratori: accedi con il tuo account. Si apre automaticamente la tua area di lavoro.</p>
       <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username"></div>
       <div class="field"><label>Password</label><div class="row"><input id="pass" type="password" autocomplete="current-password"><button id="togglePass" type="button" class="btn secondary" aria-label="Mostra password">👁</button></div></div>
       <div class="row between"><button id="forgotPass" type="button" class="btn secondary">Password dimenticata</button></div>
@@ -211,6 +211,7 @@
         <section id="testDoctor" class="view hidden"><div class="card"><h2>Supporto Test Medico</h2><p class="notice">Questa vista usa l’account amministratore per leggere il percorso e rispondere ai pazienti che hanno scelto Test Medico. Medi può navigare la dashboard amministrativa e aprire i pazienti assegnati al tuo account; per comandi clinici su terapie e messaggi accedi come medico approvato.</p><button id="switchToClinicianLogin" type="button" class="btn secondary">Esci e accedi come medico test</button><div id="testDoctorContent"></div></div></section>
 
         <section id="requests" class="view hidden">
+          <div id="clinicalCenterRequests" class="card section"></div>
           <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>
           <div class="card section"><h2>Elementi inviati dai pazienti</h2><p class="muted">Terapie, controlli e documenti inseriti manualmente o letti da foto.</p><div id="careImportList" class="list"></div></div>
         </section>

@@ -1,4 +1,6 @@
 import {renderCenterAdmin} from './center-admin.js';
+import {accountWorkspace} from './workspace-routing.js';
+import {renderClinicalCenterRequests} from './center-requests.js';
 import './visit-slots.js';
 import './chat-audio.js';
 import './voice-calls.js';
@@ -162,6 +164,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='delivery')loadDelivery();
   if(b.dataset.view==='admin')loadAdmin();
   if(b.dataset.view==='protocols')loadProtocols();
+  if(b.dataset.view==='requests')await loadRequests();
   if(b.dataset.view==='marcoDoctor')loadMarcoDoctor();
   if(b.dataset.view==='testDoctor')loadTestDoctor();
 });
@@ -207,7 +210,10 @@ async function boot(){
   const{data:{user}}=await sb.auth.getUser(); if(!user)return; await persistClinicianLegal();
   const{data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error)return out($('authMsg'),error.message); me=p;
-  if(!me||!['Clinician','Administrator'].includes(me.role))return out($('authMsg'),'Account non abilitato come medico.');
+  let access;
+  try{access=await accountWorkspace(sb,user,me);}catch(e){return out($('authMsg'),e.message);}
+  if(access.kind==='center'){location.replace('./center.html');return;}
+  if(!['doctor','admin'].includes(access.kind))return out($('authMsg'),me?.account_active?'Account non abilitato alla dashboard. Per il profilo paziente usa l’app MEDIapp.':'Account non attivo. Contatta l’amministratore.');
   chatUserId=user.id;MeditalyCalls.init(sb,me.id,false);ensureDashboardChatRealtime();
   // Accesso beta con password e ruolo approvato; il secondo fattore non è richiesto.
   $('auth').classList.add('hidden');$('mfa').classList.add('hidden');$('portal').classList.remove('hidden');$('logout').classList.remove('hidden');
@@ -858,6 +864,7 @@ $('proposeAppointment').onclick=async()=>{
 
 async function loadRequests(){
  const uid=(await sb.auth.getUser()).data.user?.id;if(!uid)return;
+ await renderClinicalCenterRequests(sb,$('clinicalCenterRequests'),async()=>{await loadPatients();await loadOverview();});
  const[{data:reqs,error:re},{data:imports,error:ie}]=await Promise.all([
   sb.from('patient_clinician_requests').select('*').eq('clinician_id',uid).order('created_at',{ascending:false}),
   sb.from('patient_care_imports').select('*').eq('clinician_id',uid).eq('status','Pending').order('created_at',{ascending:false})

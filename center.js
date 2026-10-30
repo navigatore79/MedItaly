@@ -1,10 +1,10 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.116.0';
+import {accountWorkspace} from './workspace-routing.js';
 const db=createClient('https://ejlhgtodmcadmdhbujkf.supabase.co','sb_publishable_QoVgKCNOTSbrXFgXdusqfA_5_OM5jwM');
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let user=null,current=null,tab='requests',search='',loadVersion=0,managedCenters=[];
 const say=s=>$('message').textContent=s,fail=e=>say(e?.message||'Operazione non disponibile. Riprova.');
 const date=s=>new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',timeZone:'Europe/Rome'}).format(new Date(s));
-$('loginForm').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;say('Accesso in corso…');try{const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;$('password').value='';await boot();}catch(e){fail(e);}finally{b.disabled=false;}};
 $('logout').onclick=async()=>{try{const {error}=await db.auth.signOut();if(error)throw error;location.reload();}catch(e){fail(e);}};
 async function mfa(){
  $('mfa').hidden=false;$('workspace').hidden=true;const {data,error}=await db.auth.mfa.listFactors();if(error)throw error;
@@ -18,10 +18,13 @@ function code(factor){
  $('otpForm').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{const {error}=await db.auth.mfa.challengeAndVerify({factorId:factor.id,code:$('otp').value});if(error)throw Error('Codice non valido o scaduto. Riprova.');const result=await db.auth.refreshSession();if(result.error)throw result.error;await boot();}catch(e){fail(e);}finally{b.disabled=false;}};
 }
 async function boot(){
- say('');$('workspace').hidden=true;const {data:{user:u},error}=await db.auth.getUser();if(!u){if(error&&error.name!=='AuthSessionMissingError')throw error;return;}if(error)throw error;
+ say('');$('workspace').hidden=true;const {data:{user:u},error}=await db.auth.getUser();if(!u){if(error&&error.name!=='AuthSessionMissingError')throw error;location.replace('./');return;}if(error)throw error;
+ const access=await accountWorkspace(db,u);
+ if(access.kind==='doctor'){location.replace('./');return;}
+ if(access.kind==='denied'){say('Account non abilitato al centro. Contatta l’amministratore.');$('access').hidden=true;$('logout').hidden=false;return;}
  user=u;$('access').hidden=true;$('logout').hidden=false;
  const previous=$('center').value;
- const {data:list,error:centersError}=await db.rpc('list_my_managed_centers');if(centersError)throw centersError;
+ const {data:list,error:centersError}=access.centers?{data:access.centers}:await db.rpc('list_my_managed_centers');if(centersError)throw centersError;
  managedCenters=list||[];
  if(!managedCenters.length){$('mfa').hidden=true;say('Il tuo account non ha ancora un centro abilitato. Contatta l’amministratore.');$('dashboard').replaceChildren();return;}
  $('intro').hidden=true;$('center').innerHTML=managedCenters.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');

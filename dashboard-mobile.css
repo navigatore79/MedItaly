@@ -1,4 +1,5 @@
 /* Smartphone presentation; clinical actions and desktop layout are unchanged. */
+#clinicalCenterRequests:empty{display:none}
 @media (max-width:700px) {
   body:has(#portal:not(.hidden)) .wrap{padding:0 14px calc(104px + env(safe-area-inset-bottom))}
   body:has(#portal:not(.hidden)) .top{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0 -14px;padding:16px 14px}
