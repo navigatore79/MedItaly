@@ -7,6 +7,8 @@ const root=path.join(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 const routing=read('workspace-routing.js').replace('export async function','async function');
 const source=read('app.js');
+const conversations=read('patient-conversations.js').replaceAll('export function','function');
+const overview=source.slice(source.indexOf('let patientConversations=null;'),source.indexOf('\nlet patientOpenRequest='));
 const boot=source.slice(source.indexOf('async function boot(){'),source.indexOf('\nconst deliveryLabel='))
  .replaceAll("location.replace('./center.html')","window.__redirect='./center.html'");
 const nav=source.slice(source.indexOf("document.querySelectorAll('.nav button').forEach(b=>b.onclick="),source.indexOf('\nfunction loadTherapyPatientList()'));
@@ -18,7 +20,7 @@ async function setup(options={}) {
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.setContent(read('index.html').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,''));
- for(const css of ['responsive.css','clinica-editoriale.css','dashboard-polish.css','dashboard-mobile.css'])await page.addStyleTag({content:read(css)});
+ for(const css of ['responsive.css','clinica-editoriale.css','dashboard-polish.css','dashboard-mobile.css','patient-conversations.css'])await page.addStyleTag({content:read(css)});
  await page.evaluate(opts=>{
   window.__options=opts;window.__loads=[];
   const profile={id:'doctor',role:opts.role||'Clinician',full_name:'Medico dimostrativo',account_active:opts.active!==false};
@@ -30,9 +32,9 @@ async function setup(options={}) {
  const out=(node,text)=>node.textContent=text,MeditalyCalls={init(){}},voiceController={startWelcomeFlow(){}};
  async function persistClinicianLegal(){} function ensureDashboardChatRealtime(){} function updateInstallButton(){}
  function showPatientDirectory(){} function setWorkspace(mode){workspace=mode;window.__workspace=mode;}
- ${['loadPatients','loadOverview','loadProtocols','loadRequests','loadDirectoryProfile','loadAppointments','loadTherapyPatientList','loadMessages','loadDelivery','loadAdmin','loadMarcoDoctor','loadTestDoctor'].map(name=>`async function ${name}(){window.__loads.push('${name}');}`).join('\n')}
+ ${['loadPatients','loadProtocols','loadRequests','loadDirectoryProfile','loadAppointments','loadTherapyPatientList','loadMessages','loadDelivery','loadAdmin','loadMarcoDoctor','loadTestDoctor'].map(name=>`async function ${name}(){window.__loads.push('${name}');}`).join('\n')}
  `;
- await page.addScriptTag({content:routing+'\n'+stubs+nav+'\n'+boot+'\nwindow.__boot=boot();'});
+ await page.addScriptTag({content:routing+'\n'+stubs+conversations+'\n'+overview+'\n'+nav+'\n'+boot+'\nwindow.__boot=boot();'});
  await page.evaluate(()=>window.__boot);
  await page.addScriptTag({content:read('dashboard-mobile.js')});
  return {page,errors};

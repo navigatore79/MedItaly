@@ -1,0 +1,63 @@
+/* The clinical overview is a private patient inbox, with the existing workspace alongside it. */
+#overview .conversation-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:4px 0 24px}
+#overview .conversation-heading .eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;color:#476457;margin:0 0 8px}
+#overview .conversation-heading h1{font-size:34px;line-height:1.2;margin:0 0 8px;color:#142d24;letter-spacing:-.03em}
+#overview .conversation-heading p{margin:0;color:#52655d;font-size:15px}
+#overview .conversation-compose{flex-shrink:0;border-radius:12px;min-height:48px;padding:12px 18px;background:#28634b;color:white;font-size:14px}
+#overview .conversation-panel{background:#fff;border:1px solid #dbe6de;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px #203e3010}
+#overview .conversation-toolbar{display:flex;gap:10px;padding:20px 20px 12px}
+#overview .conversation-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:#f0f5f1;border:1px solid #e1e9e3;border-radius:12px;padding:0 13px;color:#526b5e}
+#overview .conversation-search svg{width:20px;height:20px;flex-shrink:0}
+#overview .conversation-search input{width:100%;min-width:0;height:46px;padding:0;border:0;background:transparent;font-size:16px;color:#182b23;outline-offset:4px}
+#overview .conversation-search input::placeholder{color:#63776b;opacity:1}
+#overview .conversation-refresh{width:46px;min-height:46px;flex-shrink:0;border:1px solid #d6e2d9;border-radius:12px;background:#fff;color:#315d47;font-size:26px;cursor:pointer}
+#overview .conversation-filters{display:flex;gap:8px;padding:0 20px 16px;border-bottom:1px solid #e7eee9}
+#overview .conversation-filters button{display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 16px;border:1px solid #d7e3d9;border-radius:24px;background:#fff;color:#365442;font-weight:750;font-size:14px;cursor:pointer}
+#overview .conversation-filters button[aria-pressed=true]{background:#e3f1e7;border-color:#c7dfcf;color:#174b31}
+#overview .conversation-filters span{font-size:12px;font-weight:700}
+#overview .conversation-status{margin:0;padding:0 20px;color:#765520;font-size:14px}
+#overview .conversation-status:not(:empty){padding-top:14px;padding-bottom:14px}
+#overview .conversation-list{list-style:none;margin:0;padding:0}
+#overview .conversation-row{display:flex;align-items:center;gap:4px;margin:0 18px;border-bottom:1px solid #edf1ed;min-width:0}
+#overview .conversation-row:last-child{border-bottom:0}
+#overview .conversation-open{display:flex;align-items:center;gap:14px;flex:1;min-width:0;border:0;padding:20px 4px;background:transparent;text-align:left;cursor:pointer;color:#192b22;font:inherit}
+#overview .conversation-avatar{display:grid;place-items:center;flex-shrink:0;width:50px;height:50px;border-radius:50%;background:#e9efdf;color:#45613f;font-size:17px;font-weight:800;letter-spacing:.02em}
+#overview .conversation-row:nth-child(3n+2) .conversation-avatar{background:#ede7dc;color:#6b5b3b}
+#overview .conversation-row:nth-child(3n) .conversation-avatar{background:#e2edeb;color:#3d6259}
+#overview .conversation-copy{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+#overview .conversation-name{font-size:16px;font-weight:750;line-height:1.3;color:#17281f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#overview .conversation-preview{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#627169;font-size:14px;line-height:1.4}
+#overview .conversation-meta{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex-shrink:0;min-width:38px;margin:0 4px;color:#708077;font-size:11px}
+#overview .has-unread .conversation-meta time{color:#286344;font-weight:750}
+#overview .has-unread .conversation-name{font-weight:850}
+#overview .has-unread .conversation-preview{color:#35493e;font-weight:600}
+#overview .conversation-badge{display:grid;place-items:center;min-width:23px;height:23px;padding:0 5px;border-radius:20px;background:#286344;color:white;font-size:12px;font-weight:800;box-sizing:border-box}
+#overview .conversation-record{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex-shrink:0;min-width:48px;min-height:50px;margin-left:6px;border:0;border-radius:10px;background:transparent;color:#4b6857;font-size:10px;font-weight:750;cursor:pointer}
+#overview .conversation-record svg{width:21px;height:21px}
+#overview .conversation-open:hover,#overview .conversation-record:hover{background:#f4f8f4;border-radius:10px}
+#overview button:focus-visible,#overview input:focus-visible{outline:2px solid #276446;outline-offset:2px}
+#overview button:disabled{opacity:.55;cursor:wait}
+#overview .conversation-empty{text-align:center;padding:52px 22px;color:#2e4f3b}
+#overview .conversation-empty strong{font-size:19px}
+#overview .conversation-empty p{max-width:380px;margin:10px auto 0;font-size:14px;color:#63766a;line-height:1.6}
+#overview .conversation-footer{margin:0;padding:16px 20px;background:#f8faf7;border-top:1px solid #edf1eb;font-size:12px;line-height:1.5;color:#627365;text-align:center}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:700px){
+ #overview .conversation-heading{display:flex;gap:12px;margin:14px 0}
+ #overview .conversation-heading h1{font-size:28px;margin:0}
+ #overview .conversation-heading p{display:none}
+ #overview .conversation-compose{width:48px;min-height:48px;padding:0;font-size:26px}
+ #overview .conversation-compose-label{display:none}
+ #overview .conversation-panel{border-radius:16px}
+ #overview .conversation-toolbar{padding:14px 12px 10px;gap:8px}
+ #overview .conversation-filters{padding:0 12px 12px}
+ #overview .conversation-row{margin:0 10px;gap:0}
+ #overview .conversation-open{gap:10px;padding:17px 0}
+ #overview .conversation-avatar{width:44px;height:44px;font-size:15px}
+ #overview .conversation-name{font-size:15px}
+ #overview .conversation-preview{font-size:13px}
+ #overview .conversation-meta{margin:0 2px;font-size:10px;min-width:30px}
+ #overview .conversation-record{min-width:44px;margin-left:0}
+ #overview .conversation-footer{padding:14px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){#overview *{scroll-behavior:auto}}

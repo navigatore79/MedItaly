@@ -1,3 +1,4 @@
+import {createPatientConversations} from './patient-conversations.js';
 import {renderCenterAdmin} from './center-admin.js';
 import {accountWorkspace} from './workspace-routing.js';
 import {renderClinicalCenterRequests} from './center-requests.js';
@@ -53,7 +54,7 @@ const LEGAL_VERSION='2.1';
 const MARCO_TEST_CLINICIAN_ID='985c1b31-a967-4c61-abe9-243fc8ea5efd';
 let chatUserId=null,dashboardChatChannel=null;
 sb.auth.onAuthStateChange((_event,session)=>{if(chatUserId&&chatUserId!==session?.user.id){chatUserId=null;MeditalyAudio.cancel();MeditalyCalls.init(sb,null,false);if(dashboardChatChannel){sb.removeChannel(dashboardChatChannel);dashboardChatChannel=null;}}});
-const $=id=>document.getElementById(id); let me=null,patients=[],patientLoadError=null,selected=null,workspace='doctor',editingProtocol=null,patientFilter=null,openSignals=[];
+const $=id=>document.getElementById(id); let me=null,patients=[],patientLoadError=null,selected=null,workspace='doctor',editingProtocol=null,patientFilter=null;
 let welcomeShown=false, clinicianInstallPrompt=null;
 const installButton=$('installClinicianApp');
 function updateInstallButton(){
@@ -176,14 +177,6 @@ function loadTherapyPatientList(){
     $('patientDetail').querySelector('[data-tab="therapy"]')?.click();$('patientDetail').scrollIntoView({behavior:'smooth',block:'start'});
   });
 }
-document.getElementById('openPatientsFromOverview').onclick=()=>document.querySelector('.nav button[data-view="patients"]').click();
-document.querySelectorAll('[data-kpi]').forEach(button=>button.onclick=async()=>{
-  const kind=button.dataset.kpi;
-  if(kind==='messages'){await document.querySelector('.nav button[data-view="messages"]').onclick();return;}
-  patientFilter=kind==='all'?null:{kind,ids:new Set(openSignals.filter(x=>x.kind===kind).map(x=>x.patient_id)),label:button.firstChild.textContent.trim()};
-  await document.querySelector('.nav button[data-view="patients"]').onclick();
-  $('patientSearch').value='';renderPatients();
-});
 $('clearPatientFilter').onclick=()=>{patientFilter=null;renderPatients();};
 setInterval(()=>{
   if(document.hidden||$('portal').classList.contains('hidden'))return;
@@ -514,55 +507,20 @@ async function sendPatientFile(id){
 }
 $('patientSearch').oninput=renderPatients;
 
+let patientConversations=null;
+async function openOverviewPatient(id,chat){
+  document.querySelector('.nav [data-view="patients"]').click();
+  await openPatient(id);
+  if(selected===id&&chat)$('patientDetail').querySelector('[data-tab="chat"]')?.click();
+}
 async function loadOverview(){
-  $('kPatients').textContent=patients.length;
-  const ids=patients.map(x=>x.patient_id);careAlerts.clear();intakeAlerts.clear();
-  $('reportDay').textContent=romeDay();
-  if(!ids.length){openSignals=[];$('attentionCount').textContent='0 segnalazioni';$('kRed').textContent='0';$('kYellow').textContent='0';$('kMsg').textContent='0';$('kIntake').textContent='0';$('attentionList').innerHTML='<p class="muted">Nessun paziente collegato.</p>';$('dailyReport').innerHTML='<p class="muted">Nessun paziente collegato.</p>';renderPatients();return;}
-  const today=romeDay();
-  const tomorrow=new Date(Date.parse(today+'T12:00:00Z')+86400000).toISOString().slice(0,10),todayStart=romeMidnight(today),tomorrowStart=romeMidnight(tomorrow);
-  const [{data:todayCheckins,error:checkinError},{data:todayIntakes,error:intakeError},{data:todayMessages,error:messageError},{data:todayJournal,error:journalError}]=await Promise.all([
-    sb.from('patient_daily_checkins').select('patient_id,status,submitted_at').in('patient_id',ids).eq('checkin_date',today),
-    sb.from('medication_intakes').select('patient_id,status,confirmed_at').in('patient_id',ids).eq('intake_date',today),
-    sb.from('chat_messages').select('sender_id,recipient_id,sent_at').in('sender_id',[...ids,me.id]).in('recipient_id',[...ids,me.id]).gte('sent_at',todayStart).lt('sent_at',tomorrowStart).limit(2000),
-    sb.from('patient_journal_entries').select('patient_id,shared_with,shared_at').in('patient_id',ids).eq('shared_with',me.id).gte('shared_at',todayStart).lt('shared_at',tomorrowStart).limit(1000)
-  ]);
-  $('dailyReport').innerHTML=checkinError||intakeError||messageError||journalError?`<div class="err">Report non disponibile: ${esc((checkinError||intakeError||messageError||journalError).message)}</div>`:
-    patients.map(patient=>{const id=patient.patient_id,checkin=(todayCheckins||[]).find(x=>x.patient_id===id),intakes=(todayIntakes||[]).filter(x=>x.patient_id===id),messages=(todayMessages||[]).filter(x=>(x.sender_id===id&&x.recipient_id===me.id)||(x.sender_id===me.id&&x.recipient_id===id)).length,shared=(todayJournal||[]).filter(x=>x.patient_id===id).length;
-      if(!checkin&&!intakes.length&&!messages&&!shared)return '';
-      const taken=intakes.filter(x=>x.status==='taken').length,skipped=intakes.filter(x=>x.status==='skipped').length,unknown=intakes.filter(x=>x.status==='unknown').length;
-      return `<div class="patient attention daily-row" data-id="${esc(id)}"><div><b>${esc(patient.profile?.full_name||'Paziente')}</b><div class="small muted">${[checkin?'Check-in: '+healthLabel(checkin.status):'',intakes.length?`Terapie: ${taken} assunte, ${skipped} non assunte, ${unknown} non ricordate`:'',messages?`${messages} messaggi`:'',shared?`${shared} voci diario condivise`:''].filter(Boolean).map(esc).join(' · ')}</div></div><div class="daily-actions"><button type="button" class="btn secondary" data-report-action="summary">Apri scheda</button><button type="button" class="btn secondary" data-report-action="chat">Rispondi</button></div></div>`;
-    }).filter(Boolean).join('')||'<p class="muted">Nessuna registrazione oggi.</p>';
-  document.querySelectorAll('#dailyReport [data-report-action]').forEach(button=>button.onclick=async()=>{const id=button.closest('[data-id]')?.dataset.id;if(!id)return;document.querySelector('[data-view="patients"]').click();await openPatient(id);if(button.dataset.reportAction==='chat')document.querySelector('#patientDetail [data-tab="chat"]')?.click();});
-  const [{data:signals,error:signalsError},{count:messagesCount,error:messagesError}]=await Promise.all([
-    sb.from('care_signals').select('id,patient_id,kind,signal_date,status,created_at').eq('status','open').in('patient_id',ids).order('created_at',{ascending:false}).limit(100),
-    sb.from('chat_messages').select('id',{count:'exact',head:true}).eq('recipient_id',(await sb.auth.getUser()).data.user.id).in('sender_id',ids).eq('is_read',false)
-  ]);
-  const mine=(signals||[]).filter(x=>ids.includes(x.patient_id));
-  const redSignals=mine.filter(x=>x.kind==='red_checkin');
-  const redDetails=new Map();
-  if(redSignals.length){
-    const {data:details,error:detailError}=await sb.from('patient_daily_checkins')
-      .select('patient_id,checkin_date,reasons,note').in('patient_id',[...new Set(redSignals.map(x=>x.patient_id))])
-      .in('checkin_date',[...new Set(redSignals.map(x=>x.signal_date))]);
-    if(detailError)console.warn('Motivi del check-in non disponibili',detailError.message);
-    else for(const row of details||[])redDetails.set(`${row.patient_id}:${row.checkin_date}`,row);
-  }
-  openSignals=mine;
-  $('attentionCount').textContent=`${mine.length} ${mine.length===1?'segnalazione':'segnalazioni'}`;
-  for(const x of mine){const list=careAlerts.get(x.patient_id)||[];list.push(x);careAlerts.set(x.patient_id,list);}
-  $('kRed').textContent=mine.filter(x=>x.kind==='red_checkin').length;
-  $('kYellow').textContent=mine.filter(x=>x.kind==='side_effect').length;
-  $('kIntake').textContent=mine.filter(x=>x.kind==='repeated_skips').length;
-  $('kMsg').textContent=messagesCount||0;
-  renderPatients();
-  $('attentionList').innerHTML=(signalsError||messagesError?`<div class="err" role="alert">Avvisi non disponibili: ${esc((signalsError||messagesError).message)}</div>`:'')+(mine.map(x=>{
-    const detail=redDetails.get(`${x.patient_id}:${x.signal_date}`);
-    const reason=[signalLabel[x.kind]||'Da valutare',...(Array.isArray(detail?.reasons)?detail.reasons:[]),detail?.note?.trim()].filter(Boolean).join(' · ').slice(0,240);
-    return `<div class="patient attention priority-row" data-id="${esc(x.patient_id)}"><div class="priority-person"><b>${esc(patients.find(p=>p.patient_id===x.patient_id)?.profile?.full_name||'Paziente')}</b><div class="small muted">${esc(x.signal_date)} · ${fmt(x.created_at)}</div></div><div class="priority-reason ${x.kind==='red_checkin'?'priority-red':''}"><strong>${esc(reason)}</strong></div><div class="priority-actions"><button class="btn secondary open-priority-patient" type="button">Apri scheda →</button><button class="btn secondary review-signal" data-signal="${esc(x.id)}" type="button">Segna visto</button></div></div>`;
-  }).join('')||'<p class="muted">Nessuna situazione segnalata da valutare.</p>');
-  document.querySelectorAll('#attentionList [data-id]').forEach(x=>x.onclick=()=>{document.querySelector('[data-view="patients"]').click();openPatient(x.dataset.id)});
-  document.querySelectorAll('.review-signal').forEach(button=>button.onclick=async e=>{e.stopPropagation();button.disabled=true;const {data,error}=await sb.rpc('review_care_signal',{p_signal_id:button.dataset.signal});if(error||!data){alert('Impossibile registrare la presa visione: '+(error?.message||'Accesso non autorizzato'));button.disabled=false;return;}loadOverview();});
+  if(!me)return;
+  if(!patientConversations)patientConversations=createPatientConversations({
+    db:sb,host:$('patientConversations'),getOwnerId:()=>me?.id,
+    onChat:id=>openOverviewPatient(id,true),onRecord:id=>openOverviewPatient(id,false),
+    onCompose:()=>document.querySelector('.nav [data-view="messages"]').click()
+  });
+  await patientConversations.load();
 }
 
 let patientOpenRequest=0;
@@ -652,7 +610,7 @@ async function openPatient(id){
     if(error)return out($('intakeMessage'),'Impossibile aggiornare le assunzioni: '+error.message);
     patientIntakes=data||[];paintIntakes();out($('intakeMessage'),'Assunzioni aggiornate.',true);
   };
-  document.querySelectorAll('#patientDetail [data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#patientDetail [data-tab]').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('#patientDetail .tabp').forEach(x=>x.classList.add('hidden'));$('patientDetail').querySelector('#'+b.dataset.tab)?.classList.remove('hidden');if(b.dataset.tab==='therapy')$('refreshIntakes')?.click();});
+  document.querySelectorAll('#patientDetail [data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#patientDetail [data-tab]').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('#patientDetail .tabp').forEach(x=>x.classList.add('hidden'));$('patientDetail').querySelector('#'+b.dataset.tab)?.classList.remove('hidden');if(b.dataset.tab==='chat'&&!msgs.error)markConversationRead(id,msgs.data||[]);if(b.dataset.tab==='therapy')$('refreshIntakes')?.click();});
   // Ricerca farmaci AIFA: menu a tendina con ricerca, solo supporto anagrafico.
   const medInput=$('medName'), medResults=$('medCatalogResults');
   let medSearchTimer=null, medAbort=null;
@@ -1130,18 +1088,40 @@ installButton.onclick=async()=>{
 };
 window.addEventListener('appinstalled',updateInstallButton);
 
+function conversationVisible(id){
+ return selected===id&&!$('patients').classList.contains('hidden')&&!!$('chat')&&!$('chat').classList.contains('hidden');
+}
+async function markConversationRead(id,messages){
+ if(!conversationVisible(id))return;
+ const ids=messages.filter(m=>m.sender_id===id&&m.recipient_id===me.id&&!m.is_read).map(m=>m.id);
+ if(!ids.length)return;
+ try{
+  const {error}=await sb.from('chat_messages').update({is_read:true,read_at:new Date().toISOString()})
+   .in('id',ids).eq('sender_id',id).eq('recipient_id',me.id).eq('is_read',false);
+  if(error)throw error;
+  queueOverviewRefresh();
+ }catch(error){if(conversationVisible(id))out($('chatMsg'),'Lettura non registrata: '+error.message);}
+}
+let overviewRefreshTimer;
+function queueOverviewRefresh(){
+ clearTimeout(overviewRefreshTimer);
+ overviewRefreshTimer=setTimeout(()=>{if(me&&!$('portal').classList.contains('hidden'))loadOverview();},250);
+}
 function ensureDashboardChatRealtime(){
  if(dashboardChatChannel||!chatUserId)return;
  const owner=chatUserId;
- dashboardChatChannel=sb.channel('dashboard-chat:'+owner).on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages',filter:'recipient_id=eq.'+owner},async event=>{
-  const row=event.new;if(chatUserId!==owner||selected!==row.sender_id||!$('chatBox'))return;
+ dashboardChatChannel=sb.channel('dashboard-chat:'+owner).on('postgres_changes',{event:'*',schema:'public',table:'chat_messages',filter:'recipient_id=eq.'+owner},async event=>{
+  if(chatUserId!==owner)return;
+  queueOverviewRefresh();
+  const row=event.new;if(event.eventType!=='INSERT'||selected!==row.sender_id||!$('chatBox'))return;
   const peer=selected;const {data,error}=await sb.from('chat_messages').select('*').eq('id',row.id).maybeSingle();
   if(error||!data||chatUserId!==owner||selected!==peer||!$('chatBox')||$('chatBox').querySelector('[data-chat-id="'+data.id+'"]'))return;
   const bubble=document.createElement('div');bubble.className='msg';bubble.dataset.chatId=data.id;
   bubble.innerHTML=(data.audio_path?MeditalyAudio.html(data):esc(data.body))+'<div class="small muted">'+fmt(data.sent_at)+'</div>';
   const box=$('chatBox');if(!box.querySelector('[data-chat-id]'))box.innerHTML='';box.append(bubble);MeditalyAudio.mountPlayers(bubble,sb);box.scrollTop=box.scrollHeight;
-  if(!$('chat').classList.contains('hidden'))await sb.from('chat_messages').update({is_read:true,read_at:new Date().toISOString()}).eq('id',data.id).eq('recipient_id',owner);
- }).on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:'clinician_id=eq.'+owner},()=>{if(chatUserId===owner&&!$('appointments')?.classList.contains('hidden'))loadAppointments().catch(()=>{});}).subscribe();
+  await markConversationRead(peer,[data]);
+ }).on('postgres_changes',{event:'*',schema:'public',table:'chat_messages',filter:'sender_id=eq.'+owner},()=>{if(chatUserId===owner)queueOverviewRefresh();})
+ .on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:'clinician_id=eq.'+owner},()=>{if(chatUserId===owner&&!$('appointments')?.classList.contains('hidden'))loadAppointments().catch(()=>{});}).subscribe();
 }
 
 }
