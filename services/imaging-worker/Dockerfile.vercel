@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends clamav clamav-f
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY worker.py server.py .
+COPY worker.py server.py selftest.py .
 RUN useradd --uid 10001 --create-home medi
 USER medi
 ENV PORT=8080 MEDI_MAX_EXPANDED_BYTES=201326592

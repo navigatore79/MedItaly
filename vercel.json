@@ -106,6 +106,12 @@
       }
     },
     {
+      "source": "/api/imaging-process/self-test",
+      "destination": {
+        "service": "imaging"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "service": "dashboard"

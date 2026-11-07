@@ -59,6 +59,19 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:self.reply(503,{'ready':False,'error':'SCANNER_UNAVAILABLE'})
 
     def do_POST(self):
+        if urlsplit(self.path).path=='/api/imaging-process/self-test':
+            if not self.authorized():return self.reply(401,{'error':'UNAUTHORIZED'})
+            if os.environ.get('MEDI_IMAGING_SELF_TEST')!='1':return self.reply(404,{'error':'NOT_FOUND'})
+            if not _lock.acquire(blocking=False):return self.reply(429,{'error':'BUSY'})
+            try:
+                size=int(self.headers.get('Content-Length','0'))
+                if not 0<size<=128:return self.reply(400,{'error':'INVALID_BODY'})
+                if json.loads(self.rfile.read(size))!={'run':'synthetic'}:return self.reply(400,{'error':'INVALID_BODY'})
+                scanner_ready()
+                from selftest import run_self_test
+                return self.reply(200,run_self_test())
+            except Exception:return self.reply(503,{'error':'SELF_TEST_UNAVAILABLE'})
+            finally:_lock.release()
         if urlsplit(self.path).path!='/api/imaging-process':return self.reply(404,{'error':'NOT_FOUND'})
         if not self.authorized():return self.reply(401,{'error':'UNAUTHORIZED'})
         try:

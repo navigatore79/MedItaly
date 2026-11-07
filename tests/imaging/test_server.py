@@ -40,6 +40,8 @@ class ServerTests(unittest.TestCase):
         with patch.object(server,'scanner_ready'):
             code,body=self.request('/api/imaging-process/health');self.assertEqual(code,200);self.assertTrue(body['ready']);self.assertNotIn('secret',body)
     def test_bad_receipt_rejected_before_backend(self):self.assertEqual(self.request('/api/imaging-process',{'id':'bad'})[0],400)
+    def test_self_test_disabled_by_default(self):self.assertEqual(self.request('/api/imaging-process/self-test',{'run':'synthetic'})[0],404)
+    def test_self_test_requires_auth(self):self.assertEqual(self.request('/api/imaging-process/self-test',{'run':'synthetic'},key=False)[0],401)
     def test_one_receipt_processed(self):
         with patch.object(server,'scanner_ready'),patch.object(server,'HostedBackend') as backend:
             backend.return_value.rpc.return_value={'id':'test'};backend.return_value.process.return_value='review'
