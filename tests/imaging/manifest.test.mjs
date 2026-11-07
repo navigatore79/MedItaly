@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {validateManifest,canonical,readJson} from '../../supabase/functions/imaging-ingest/validation.ts';
+const base=()=>({version:1,request_id:'r1',issuer:'HOSPITAL',patient_id:'MRN1',title:'Esame',final:true,files:[{kind:'archive',bytes:100,sha256:'a'.repeat(64)}]});
+test('normalizes only allowed fields and preserves opaque patient identifier',()=>{const m=base();m.url='https://attacker.invalid';assert.equal(validateManifest(m).url,undefined);assert.equal(validateManifest(m).patient_id,'MRN1');});
+test('requires definitive release',()=>{const m=base();m.final=false;assert.throws(()=>validateManifest(m),/FINAL_RELEASE/);});
+test('rejects oversized content, missing hash, and unsupported files',()=>{for(const patch of [{bytes:2**32},{sha256:'bad'},{kind:'exe'}]){const m=base();Object.assign(m.files[0],patch);assert.throws(()=>validateManifest(m));}});
+test('invalid calendar dates rejected',()=>{const m=base();m.birth_date='1950-02-30';assert.throws(()=>validateManifest(m));});
+test('canonical hashes insensitive to JSON key order',()=>assert.equal(canonical({b:2,a:1}),canonical({a:1,b:2})));
+test('bounded JSON parser rejects streaming large bodies',async()=>{await assert.rejects(readJson(new Request('https://test.invalid',{method:'POST',headers:{'content-type':'application/json'},body:'x'.repeat(100)}),20),/BODY_TOO_LARGE/);});
+test('serverless total size rejected before any upload',()=>{const m=base();m.files[0].bytes=65*1048576;assert.throws(()=>validateManifest(m),/DELIVERY_TOO_LARGE_64_MIB/);});

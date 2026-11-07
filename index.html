@@ -108,6 +108,7 @@
         <button data-view="protocols">Modelli e protocolli</button>
         <button data-view="messages">Messaggi</button>
         <button data-view="delivery">Notifiche inviate</button>
+        <button data-view="imaging">Prestazioni</button>
         <button id="adminNav" data-view="admin" class="hidden">Amministrazione</button>
         <button id="marcoDoctorNav" data-view="marcoDoctor" class="hidden">Dr. Marco Test</button>
         <button id="testDoctorNav" data-view="testDoctor" class="hidden">Supporto test</button>
@@ -205,6 +206,8 @@
           <div class="card"><h2>Richieste di collegamento</h2><p class="muted">I pazienti possono cercarti nell'app e chiedere il collegamento. L'associazione diventa attiva solo dopo la tua accettazione.</p><div id="linkRequestList" class="list"></div></div>
           <div class="card section"><h2>Elementi inviati dai pazienti</h2><p class="muted">Terapie, controlli e documenti inseriti manualmente o letti da foto.</p><div id="careImportList" class="list"></div></div>
         </section>
+
+        <section id="imaging" class="view hidden"><div id="imagingContent" class="card"></div></section>
 
         <section id="profile" class="view hidden">
           <div class="card"><h2>Profilo pubblico Meditaly</h2><p class="muted">Questi dati sono mostrati nell'elenco medici dell'app paziente.</p><div class="field"><label>Nome visualizzato</label><input id="dirName"></div><div class="field"><label>Specializzazione</label><input id="dirSpecialty"></div><div class="field"><label>Centro / struttura</label><input id="dirCenter"></div><div class="field"><label>Numero iscrizione Albo</label><input id="dirReg"></div><div class="row"><label><input id="dirVisible" type="checkbox"> Visibile nell'elenco medici</label><label><input id="dirAccept" type="checkbox"> Accetta nuove richieste</label></div><button id="saveDirectory" class="btn" style="margin-top:12px">Salva profilo</button><div id="dirMsg"></div></div>
