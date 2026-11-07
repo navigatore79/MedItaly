@@ -11,6 +11,7 @@ import threading
 import time
 import uuid
 import zipfile
+from urllib.parse import urlsplit
 from worker import HostedBackend, InvalidStudy, scan
 
 _lock=threading.Lock()
@@ -52,13 +53,13 @@ class Handler(BaseHTTPRequestHandler):
         return len(secret)>=64 and hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+secret)
 
     def do_GET(self):
-        if self.path!='/api/imaging-process/health':return self.reply(404,{'error':'NOT_FOUND'})
+        if urlsplit(self.path).path!='/api/imaging-process/health':return self.reply(404,{'error':'NOT_FOUND'})
         if not self.authorized():return self.reply(401,{'error':'UNAUTHORIZED'})
         try:scanner_ready();self.reply(200,{'ready':True,'mode':'vercel_on_demand','max_compressed_bytes':64*1024**2,'max_expanded_bytes':192*1024**2})
         except Exception:self.reply(503,{'ready':False,'error':'SCANNER_UNAVAILABLE'})
 
     def do_POST(self):
-        if self.path!='/api/imaging-process':return self.reply(404,{'error':'NOT_FOUND'})
+        if urlsplit(self.path).path!='/api/imaging-process':return self.reply(404,{'error':'NOT_FOUND'})
         if not self.authorized():return self.reply(401,{'error':'UNAUTHORIZED'})
         try:
             size=int(self.headers.get('Content-Length','0'))

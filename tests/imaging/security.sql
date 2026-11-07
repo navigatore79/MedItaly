@@ -15,10 +15,22 @@ do $$declare c uuid; p uuid; s jsonb; d uuid; lease uuid; result text; count_bef
  begin perform public.imaging_verify_identity((select v from imaging_test_context where k='other'),'HOSPITAL','MRN-2',p,null);raise exception 'CROSS_CENTER_ALLOWED';exception when others then if sqlerrm<>'PATIENT_NOT_IN_CENTER' then raise;end if;end;
  insert into public.imaging_deliveries(source_id,center_id,request_id,manifest,manifest_hash,status) values((s->>'id')::uuid,c,'test-1','{"issuer":"HOSPITAL","patient_id":"MRN-1","birth_date":"1950-01-01","title":"Test","final":true}',repeat('a',64),'queued') returning id into d;
  -- Claim cannot be stolen by an arbitrary lease token.
- select (public.imaging_claim()->>'lease_token')::uuid into lease;
+ select (public.imaging_claim_delivery(d)->>'lease_token')::uuid into lease;
  begin perform public.imaging_complete(d,gen_random_uuid(),'{"ok":true}','[]');raise exception 'LEASE_NOT_CHECKED';exception when others then if sqlerrm<>'INVALID_LEASE' then raise;end if;end;
  result:=public.imaging_complete(d,lease,'{"ok":true,"birth_date":"1950-01-01"}',jsonb_build_array(jsonb_build_object('path',d::text||'/test','kind','report','sha256',repeat('a',64),'bytes',20)));
  if result<>'published' then raise exception 'AUTO_PUBLICATION_FAILED: %',result;end if;
+ -- Unknown identities with an asserted date are reviewable, not falsely contradictory.
+ declare unknown_id uuid; unknown_lease uuid; conflict_id uuid; conflict_lease uuid; begin
+  insert into public.imaging_deliveries(source_id,center_id,request_id,manifest,manifest_hash,status) values((s->>'id')::uuid,c,'unknown-test','{"issuer":"HOSPITAL","patient_id":"UNKNOWN","birth_date":"1950-01-01","title":"Test","final":true}',repeat('b',64),'queued') returning id into unknown_id;
+  select (public.imaging_claim_delivery(unknown_id)->>'lease_token')::uuid into unknown_lease;
+  perform public.imaging_complete(unknown_id,unknown_lease,'{"ok":true,"birth_date":"1950-01-01"}',jsonb_build_array(jsonb_build_object('path',unknown_id::text||'/test','kind','report','sha256',repeat('b',64),'bytes',20)));
+  if not exists(select 1 from public.imaging_deliveries where id=unknown_id and status='review' and reason='IDENTITY_NOT_VERIFIED' and patient_id is null) then raise exception 'UNKNOWN_IDENTITY_MISCLASSIFIED';end if;
+  insert into public.imaging_deliveries(source_id,center_id,request_id,manifest,manifest_hash,status) values((s->>'id')::uuid,c,'dob-conflict-test','{"issuer":"HOSPITAL","patient_id":"MRN-1","birth_date":"1970-01-01","title":"Test","final":true}',repeat('c',64),'queued') returning id into conflict_id;
+  select (public.imaging_claim_delivery(conflict_id)->>'lease_token')::uuid into conflict_lease;
+  perform public.imaging_complete(conflict_id,conflict_lease,'{"ok":true}',jsonb_build_array(jsonb_build_object('path',conflict_id::text||'/test','kind','report','sha256',repeat('c',64),'bytes',20)));
+  if not exists(select 1 from public.imaging_deliveries where id=conflict_id and status='review' and reason='IDENTITY_CONFLICT' and patient_id is null) then raise exception 'KNOWN_DOB_CONFLICT_NOT_BLOCKED';end if;
+ end;
+
  select count(*) into count_before from public.notifications where patient_id=p;
  perform public.imaging_publish(d,p);
  if (select count(*) from public.notifications where patient_id=p)<>count_before then raise exception 'DUPLICATE_NOTIFICATION';end if;

@@ -30,6 +30,9 @@ class ServerTests(unittest.TestCase):
             with urllib.request.urlopen(req) as r:return r.status,json.load(r)
         except urllib.error.HTTPError as e:return e.code,json.load(e)
     def test_health_requires_secret(self):self.assertEqual(self.request('/api/imaging-process/health',key=False)[0],401)
+    def test_query_does_not_change_health_route(self):
+        with patch.object(server,'scanner_ready'):
+            self.assertEqual(self.request('/api/imaging-process/health?test=1')[0],200)
     def test_post_requires_secret_before_claim(self):self.assertEqual(self.request('/api/imaging-process',{'id':'bad'},key=False)[0],401)
     def test_scanner_failure_blocks_readiness(self):
         with patch.object(server,'scanner_ready',side_effect=RuntimeError()):self.assertEqual(self.request('/api/imaging-process/health')[0],503)
