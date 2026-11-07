@@ -15,6 +15,8 @@ import pydicom
 from pypdf import PdfReader
 import requests
 
+pydicom.config.settings.reading_validation_mode = pydicom.config.RAISE
+
 MAX_EXPANDED = 2 * 1024**3
 MAX_FILES = 10000
 MAX_FILE = 512 * 1024**2
@@ -106,9 +108,13 @@ def inspect_file(path, manifest):
     if len(header) < 132 or header[128:132] != b'DICM':
         raise InvalidStudy('UNSUPPORTED_CONTENT')
     try:
-        ds = pydicom.dcmread(str(path), stop_before_pixels=True, force=False)
+        ds = pydicom.dcmread(str(path), defer_size=1024, force=False)
         if str(ds.get('SOPClassUID', '')) == '1.2.840.10008.1.3.10':
             return None, {}  # DICOMDIR is an index, never executable or patient-visible.
+        if not any(tag in ds for tag in ('PixelData','FloatPixelData','DoubleFloatPixelData')):
+            raise InvalidStudy('DICOM_IMAGE_DATA_MISSING')
+        if not 1<=int(ds.get('NumberOfFrames',1))<=10000 or not 1<=int(ds.get('Rows',0))<=8192 or not 1<=int(ds.get('Columns',0))<=8192:
+            raise InvalidStudy('DICOM_IMAGE_LIMIT')
         pid = str(ds.get('PatientID', '')).strip()
         issuer = str(ds.get('IssuerOfPatientID', '')).strip()
         if not pid or pid != manifest['patient_id'] or (issuer and issuer != manifest['issuer']):
