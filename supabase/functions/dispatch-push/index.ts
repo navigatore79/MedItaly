@@ -1,6 +1,6 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +61,13 @@ async function firebaseAccessToken(sa) {
   return json.access_token;
 }
 
+// Notification text is stored in the authenticated in-app inbox, not in the push payload.
+export function notificationDestination(notification) {
+  const appointment = notification.notification_type === "Appointment Alert" && !!notification.related_appointment_id;
+  return appointment ? { type: "appointment_proposal", route: "followup" }
+    : { type: "patient_notice", route: "notifications" };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") {
@@ -103,8 +110,6 @@ Deno.serve(async (req) => {
     if (notificationError || !notification) throw new Error("NOTIFICATION_NOT_FOUND");
     if (notification.sender_id !== caller) throw new Error("NOT_ALLOWED");
     if (outbox.user_id !== notification.patient_id) throw new Error("PATIENT_MISMATCH");
-    const appointmentProposal = notification.notification_type === "Appointment Alert" &&
-      !!notification.related_appointment_id;
 
     const { data: callerProfile } = await admin
       .from("profiles").select("role,account_active").eq("id", caller).single();
@@ -186,12 +191,13 @@ Deno.serve(async (req) => {
             authorization: "Bearer " + accessToken,
             "content-type": "application/json",
           },
+          signal: AbortSignal.timeout(12000),
           body: JSON.stringify({
             message: {
               token: t.token,
               data: {
-                type: appointmentProposal ? "appointment_proposal" : "chat",
-                route: appointmentProposal ? "followup" : "messages",
+                ...notificationDestination(notification),
+                notification_id: notification.id,
               },
               android: {
                 priority: "high",
