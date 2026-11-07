@@ -17,9 +17,9 @@ import requests
 
 pydicom.config.settings.reading_validation_mode = pydicom.config.RAISE
 
-MAX_EXPANDED = 2 * 1024**3
-MAX_FILES = 10000
-MAX_FILE = 512 * 1024**2
+MAX_EXPANDED = int(os.environ.get('MEDI_MAX_EXPANDED_BYTES', 192 * 1024**2))
+MAX_FILES = 1000
+MAX_FILE = 64 * 1024**2
 
 class InvalidStudy(ValueError):
     pass
@@ -63,7 +63,11 @@ def unpack(path, target):
 def scan(path):
     # The fixed executable receives no sender-controlled arguments. Fail closed.
     try:
-        result = subprocess.run(['clamscan', '--no-summary', '--', str(path)],
+        database=os.environ.get('MEDI_CLAMAV_DATABASE','/var/lib/clamav')
+        result = subprocess.run(['clamscan', '--no-summary', '--recursive',
+                                '--alert-exceeds-max=yes', '--max-filesize=64M',
+                                '--max-scansize=256M', '--max-files=2000',
+                                '--database='+database, '--', str(path)],
                                 capture_output=True, timeout=180, check=False)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise RuntimeError('SCANNER_UNAVAILABLE') from e
@@ -181,12 +185,23 @@ class Backend:
         r.raise_for_status()
         return r.json() if r.content else None
 
+    def input_response(self, job, index):
+        return self.session.get(self.url+'/storage/v1/object/imaging-incoming/'+job['id']+'/'+str(index),stream=True,timeout=(15,180))
+
+    def upload(self, job, asset, local):
+        path=job['id']+'/'+asset['sha256']
+        with local.open('rb') as f:
+            r=self.session.post(self.url+'/storage/v1/object/imaging-clinical/'+path,data=f,
+                headers={'Content-Type':'application/pdf' if asset['kind']=='report' else 'application/dicom','x-upsert':'true'},timeout=(15,180))
+            r.raise_for_status()
+        return path
+
     def process(self, job):
         with tempfile.TemporaryDirectory(prefix='medi-imaging-') as work:
             root, paths = Path(work), []
             for i, spec in enumerate(job['manifest']['files']):
                 path = root / ('incoming-'+str(i))
-                with self.session.get(self.url+'/storage/v1/object/imaging-incoming/'+job['id']+'/'+str(i), stream=True, timeout=(15,180)) as r:
+                with self.input_response(job,i) as r:
                     r.raise_for_status()
                     size = 0
                     with path.open('wb') as f:
@@ -197,7 +212,6 @@ class Backend:
                             f.write(chunk)
                 if size != spec['bytes'] or checksum(path) != spec['sha256']:
                     raise InvalidStudy('FILE_HASH_MISMATCH')
-                scan(path)
                 if spec['kind'] == 'archive':
                     dest = root / ('expanded-'+str(i));dest.mkdir()
                     paths.extend(unpack(path, dest))
@@ -205,17 +219,43 @@ class Backend:
                     paths.append(path)
             if sum(p.stat().st_size for p in paths) > MAX_EXPANDED or len(paths)>MAX_FILES:
                 raise InvalidStudy('DELIVERY_LIMIT')
-            assets, validation = validate(paths, job['manifest'])
+            # One antivirus engine invocation for the whole quarantined delivery.
+            scan(root)
+            assets, validation = validate(paths, job['manifest'], scanner=lambda _:None)
             uploaded = []
             for i, asset in enumerate(assets):
-                path = job['id']+'/'+asset['sha256']
                 # Content-addressed paths; retry may reuse only the exact same bytes.
-                with asset.pop('local').open('rb') as f:
-                    r = self.session.post(self.url+'/storage/v1/object/imaging-clinical/'+path, data=f,
-                         headers={'Content-Type':'application/pdf' if asset['kind']=='report' else 'application/dicom','x-upsert':'true'},timeout=(15,180))
-                    r.raise_for_status()
+                path=self.upload(job,asset,asset.pop('local'))
                 uploaded.append({**asset, 'path': path})
             return self.rpc('imaging_complete',{'p_delivery':job['id'],'p_lease':job['lease_token'],'p_validation':validation,'p_assets':uploaded})
+
+class HostedBackend(Backend):
+    """Vercel uses a scoped imaging gateway. No database/service-role credential."""
+    def __init__(self):
+        self.gateway=os.environ['MEDI_IMAGING_GATEWAY_URL']
+        if self.gateway!='https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/imaging-worker':
+            raise RuntimeError('INVALID_GATEWAY')
+        self.secret=os.environ['MEDI_IMAGING_WORKER_SECRET']
+
+    def call(self, body):
+        r=requests.post(self.gateway,json=body,headers={'Authorization':'Bearer '+self.secret},timeout=(15,120))
+        r.raise_for_status();return r.json()
+
+    def rpc(self, name, body):
+        if name=='imaging_claim_delivery':return self.call({'action':'claim','id':body['p_delivery']})['job']
+        if name=='imaging_complete':return self.call({'action':'complete','id':body['p_delivery'],'lease':body['p_lease'],'validation':body['p_validation'],'assets':body['p_assets']})['status']
+        raise RuntimeError('UNSUPPORTED_OPERATION')
+
+    def input_response(self,job,index):
+        return requests.get(job['input_urls'][index],stream=True,timeout=(15,180))
+
+    def upload(self,job,asset,local):
+        ticket=self.call({'action':'prepare_asset','id':job['id'],'lease':job['lease_token'],
+            'sha256':asset['sha256'],'kind':asset['kind'],'bytes':asset['bytes']})
+        with local.open('rb') as f:
+            r=requests.put(ticket['url'],data=f,headers={'Content-Type':'application/octet-stream'},timeout=(15,180))
+            if r.status_code not in (200,201,409):r.raise_for_status()
+        return ticket['path']
 
 def run():
     # Verify antivirus availability before advertising worker readiness.

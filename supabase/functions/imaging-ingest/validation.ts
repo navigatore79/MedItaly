@@ -11,7 +11,8 @@ export function validateManifest(m:any){
  if(!Array.isArray(m.files)||m.files.length<1||m.files.length>32)throw new TypeError('INVALID_FILES');
  let total=0;
  out.files=m.files.map((f:any)=>{if(!['report','dicom','archive'].includes(f.kind)||!Number.isSafeInteger(f.bytes)||f.bytes<1||f.bytes>1073741824||!/^[a-f0-9]{64}$/.test(f.sha256||''))throw new TypeError('INVALID_FILE');total+=f.bytes;return{kind:f.kind,bytes:f.bytes,sha256:f.sha256};});
- if(total>1073741824)throw new TypeError('DELIVERY_TOO_LARGE');
+ // Bounded first serverless release: reject oversize BEFORE issuing upload URLs.
+ if(total>64*1048576)throw new TypeError('DELIVERY_TOO_LARGE_64_MIB');
  return out;
 }
 export async function readJson(req:Request,max:number){

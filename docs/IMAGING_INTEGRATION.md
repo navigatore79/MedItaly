@@ -1,6 +1,6 @@
 # MEDIapp central imaging intake v1
 
-Implementation status: integration candidate, not commissioned for clinical delivery.
+Implementation status: integration candidate, not commissioned for clinical delivery. Processing now targets the existing Vercel med-italy project; no separate server is required. See services/imaging-worker/README_VERCEL.md for activation.
 Existing patient archives and Firebase configuration are unchanged.
 
 ## One entry point
@@ -29,7 +29,7 @@ Example manifest (synthetic identifiers):
 
 Optional fiscal_code, accession_number, study_uid. Fiscal code is an assertion by the authenticated sender, not a substitute for identity verification. Name matching and PDF OCR are never automatic routing criteria. `final:true` is the source's publication instruction; it does not assert cryptographic verification of a PDF signature. Only call this API after the originating workflow has finalized/authorized the report.
 
-Limits: 32 files and 1 GiB compressed per delivery, bucket plan limits may be lower; worker 2 GiB expanded, 10,000 archive entries, 512 MiB per archive member, ratio 200:1. Local phone ZIP import is separate: 64 MiB compressed, 128 MiB expanded, 1,000 entries. ZIP is a transport container, never the patient identity. No nested archives, executables, password-protected archives or mixed-patient/mixed-study archives. DICOMDIR indexes are ignored. PDF and standard Part 10 DICOM objects are accepted; ancillary CD launcher files must be removed by the source. All declared files must arrive before validation. SHA256, file size, antivirus, parser, patient/issuer/DOB, study/accession consistency and duplicate SOP checks precede publication. Each receipt represents one study; an archive containing another study must be split.
+Limits for the first serverless release: 32 files and 64 MiB total input per delivery; worker 192 MiB expanded, 1,000 archive entries, 64 MiB per archive member, ratio 200:1. Larger deliveries are rejected before issuing upload URLs. Local phone ZIP import is separate: 64 MiB compressed, 128 MiB expanded, 1,000 entries. ZIP is a transport container, never the patient identity. No nested archives, executables, password-protected archives or mixed-patient/mixed-study archives. DICOMDIR indexes are ignored. PDF and standard Part 10 DICOM objects are accepted; ancillary CD launcher files must be removed by the source. All declared files must arrive before validation. SHA256, file size, antivirus, parser, patient/issuer/DOB, study/accession consistency and duplicate SOP checks precede publication. Each receipt represents one study; an archive containing another study must be split.
 
 ## Identity and publication
 
@@ -37,11 +37,15 @@ A clinical center manager verifies a mapping from `(center, issuer, external pat
 
 Published deliveries generate a generic in-app notification in the existing notifications table. This implementation does not yet dispatch a new FCM push for automated delivery; notification with the app closed remains a commissioning task. Access timestamps record an access request, not proof of clinical reading. Signed file links expire in 60 seconds; revoke/access changes cannot invalidate an already issued link before its expiry or a copy already downloaded. Access and publication events are audited.
 
-## Validator deployment (required)
+## Processing on existing Vercel + Supabase
 
-Build `services/imaging-worker/Dockerfile`. Supply SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY through a server-side secret store; do not put them in browser/Android assets or git. Mount a maintained ClamAV signature database read-only. Use a private EU-hosted worker, no inbound public port, an encrypted ephemeral volume, a non-root user, memory/CPU/disk quotas and monitored restarts. The service key is privileged: isolate the worker and restrict operator access. The receiver refuses new deliveries with PROCESSOR_OFFLINE until the worker has passed its antivirus check and sends a heartbeat. A failed scanner never becomes an approved study.
+Use Vercel Services to keep the static dashboard on the CDN and run the Dockerfile.vercel validator only on demand, in Frankfurt next to the existing Supabase region. Container Runtime and Services are Beta. Each authenticated HTTP invocation handles one receipt; no daemon or separate hosting account is required. The receiver sends only a receipt identifier to Vercel; clinical files travel directly through short-lived Supabase Storage URLs. The Vercel component has an imaging-scoped secret, never the Supabase service-role key.
 
-The worker downloads to temporary storage, validates, uploads validated files to the private imaging-clinical bucket, and completes an atomic leased job. A 30-minute lease is retried at most five times. Size infrastructure so a job finishes within its lease. Configure orphan-file cleanup and retention according to the center's agreed policy before real use; no automatic deletion policy is introduced by this change.
+The gateway's only operations are claim a specific queued receipt, prepare a receipt-scoped upload and complete a leased validation. Its private configuration defaults to disabled. The ingest verifies the antivirus-protected service's readiness before accepting an upload and triggers processing after all input files arrive. Polling a queued or expired receipt retries processing without creating another receipt. Configure a durable retry schedule before unattended operation when the source does not poll.
+
+ClamAV runs inside the Vercel container. Failed updates, stale definitions and failed scans close readiness/publication. Updates retrieve signature data only and never transmit clinical files to an external scanning service. Validate real scanner behavior, temporary disk capacity, memory, function duration and cold starts on the actual Vercel account before commissioning. No automatic original-file deletion policy is introduced; agree retention and orphan cleanup with the center.
+
+See services/imaging-worker/README_VERCEL.md for the exact production-only variables, deployment sequence and test gates. No new source credentials or patient mappings have been created. Normal usage costs within Vercel and Supabase still apply.
 
 ## App/viewer
 
@@ -49,4 +53,4 @@ The patient report archive gains Prestazioni del centro and a local-only ZIP ope
 
 ## Commissioning still required
 
-Deploy and monitor the validator with current antivirus signatures; configure the first source and verify actual patient mappings with the center; confirm PACS/RIS export/API adapter (this endpoint is a documented JSON intake API, not a drop-in STOW-RS or traditional DIMSE destination); test real anonymized PDF, angiography, ultrasound, CT and transfer syntaxes; validate original signed PDF behavior; connect FCM dispatch; validate Android APK and notifications on devices; agree retention, access logging, hosting responsibilities and operational procedures. Do not activate automatic clinical publication before these checks.
+Authorize access to the existing Vercel team, deploy and monitor the on-demand validator with current antivirus signatures; configure the first source and verify actual patient mappings with the center; confirm PACS/RIS export/API adapter (this endpoint is a documented JSON intake API, not a drop-in STOW-RS or traditional DIMSE destination); test real anonymized PDF, angiography, ultrasound, CT and transfer syntaxes; validate original signed PDF behavior; connect FCM dispatch; validate Android APK and notifications on devices; agree retention, access logging, hosting responsibilities and operational procedures. Do not activate automatic clinical publication before these checks.

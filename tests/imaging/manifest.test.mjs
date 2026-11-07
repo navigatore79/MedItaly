@@ -8,3 +8,4 @@ test('rejects oversized content, missing hash, and unsupported files',()=>{for(c
 test('invalid calendar dates rejected',()=>{const m=base();m.birth_date='1950-02-30';assert.throws(()=>validateManifest(m));});
 test('canonical hashes insensitive to JSON key order',()=>assert.equal(canonical({b:2,a:1}),canonical({a:1,b:2})));
 test('bounded JSON parser rejects streaming large bodies',async()=>{await assert.rejects(readJson(new Request('https://test.invalid',{method:'POST',headers:{'content-type':'application/json'},body:'x'.repeat(100)}),20),/BODY_TOO_LARGE/);});
+test('serverless total size rejected before any upload',()=>{const m=base();m.files[0].bytes=65*1048576;assert.throws(()=>validateManifest(m),/DELIVERY_TOO_LARGE_64_MIB/);});
