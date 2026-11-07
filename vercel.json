@@ -87,8 +87,7 @@
           "maxDuration": 300,
           "regions": [
             "fra1"
-          ],
-          "maxConcurrency": 1
+          ]
         }
       }
     }
