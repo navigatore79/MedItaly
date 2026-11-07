@@ -1,4 +1,5 @@
 import {createPatientConversations} from './patient-conversations.js';
+import {renderImagingCenter} from './imaging-center.js';
 import {renderCenterAdmin} from './center-admin.js';
 import {accountWorkspace} from './workspace-routing.js';
 import {renderClinicalCenterRequests} from './center-requests.js';
@@ -166,6 +167,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=async()=>{
   if(b.dataset.view==='admin')loadAdmin();
   if(b.dataset.view==='protocols')loadProtocols();
   if(b.dataset.view==='requests')await loadRequests();
+  if(b.dataset.view==='imaging')await renderImagingCenter(sb,$('imagingContent'));
   if(b.dataset.view==='marcoDoctor')loadMarcoDoctor();
   if(b.dataset.view==='testDoctor')loadTestDoctor();
 });

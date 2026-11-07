@@ -1,0 +1,7 @@
+node_modules/
+imaging-viewer-dist/
+qa-imaging/
+supabase/.temp/
+__pycache__/
+tests/imaging/synthetic.dcm
+.env*
