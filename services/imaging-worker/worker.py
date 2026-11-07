@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 
 import pydicom
 from pypdf import PdfReader
@@ -222,16 +223,18 @@ class Backend:
             # One antivirus engine invocation for the whole quarantined delivery.
             scan(root)
             assets, validation = validate(paths, job['manifest'], scanner=lambda _:None)
-            uploaded = []
-            for i, asset in enumerate(assets):
+            def upload_one(asset):
                 # Content-addressed paths; retry may reuse only the exact same bytes.
                 path=self.upload(job,asset,asset.pop('local'))
-                uploaded.append({**asset, 'path': path})
+                return {**asset, 'path': path}
+            with ThreadPoolExecutor(max_workers=getattr(self,'upload_concurrency',1)) as pool:
+                uploaded=list(pool.map(upload_one,assets))
             return self.rpc('imaging_complete',{'p_delivery':job['id'],'p_lease':job['lease_token'],'p_validation':validation,'p_assets':uploaded})
 
 class HostedBackend(Backend):
     """Vercel uses a scoped imaging gateway. No database/service-role credential."""
     def __init__(self):
+        self.upload_concurrency=4
         self.gateway=os.environ['MEDI_IMAGING_GATEWAY_URL']
         if self.gateway!='https://ejlhgtodmcadmdhbujkf.supabase.co/functions/v1/imaging-worker':
             raise RuntimeError('INVALID_GATEWAY')
